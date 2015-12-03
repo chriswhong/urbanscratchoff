@@ -1,0 +1,9 @@
+The image object (as returned by document.getElementById)
+The X coordinate of the area to select
+The Y coordinate of the area to select
+The width of the area to select
+The height of the area to select
+The X coordinate to draw the image at
+The Y coordinate to draw the image at
+The width to draw the image
+The height to draw the image

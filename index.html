@@ -1,0 +1,118 @@
+<html class="html">
+<head>
+  <meta charset="UTF-8">
+  <title>Document</title>
+  <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+  <style type="text/css">
+    #map {
+      width:100%;
+      height:600px;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+
+
+  <script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+  <script src="js/L.CanvasOverlay.js"></script>
+  <script src="js/data.js" charset="utf-8"></script>
+  <script>
+
+    // var layer = L.tileLayer('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',{
+    //   attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
+    // });
+
+    googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+          maxZoom: 20,
+          subdomains:['mt0','mt1','mt2','mt3']
+      });
+
+    var map = L.map('map').setView([40.68,-74.01], 16);
+
+    // Disable drag and zoom handlers.
+    map.dragging.disable();
+    map.touchZoom.disable();
+    map.doubleClickZoom.disable();
+    map.scrollWheelZoom.disable();
+
+    googleSat.addTo(map);
+
+    var southWest = L.latLng(40.66503200572965, -74.05474012462436),
+    northEast = L.latLng(40.698903681111005, -73.99383845433859),
+    imgBounds = L.latLngBounds(southWest, northEast);
+
+    // var canvas = document.getElementById('canvas1');
+    // var context = canvas.getContext('2d');
+
+    var img = new Image();
+    img.src = "img/redhook.png"; 
+    img.onload = function() {
+       initCanvas();
+    };
+
+    
+
+    var fillCircle = function(x, y, radius, fillColor) {
+            this.fillStyle = fillColor;
+            this.beginPath();
+            this.moveTo(x, y);
+            this.arc(x, y, radius, 0, Math.PI * 2, false);
+            this.fill();
+        };
+
+      
+
+
+    function initCanvas() {
+      L.canvasOverlay()
+      .drawing(drawingOnCanvas)
+      .addTo(map);
+
+      function drawingOnCanvas(canvasOverlay, params) {
+          console.log('drawingOnCanvas')
+          console.log(params);
+          var ctx = params.canvas.getContext('2d');
+
+          ctx.fillCircle = fillCircle;
+      
+
+          ctx.clearRect(0, 0, params.canvas.width, params.canvas.height); 
+
+          var bounds = new L.Bounds(
+            map.latLngToContainerPoint(imgBounds.getNorthWest()),
+            map.latLngToContainerPoint(imgBounds.getSouthEast()));
+          
+          var size = bounds.getSize();
+          console.log(size);
+
+          console.log("bounds",bounds)
+          //context.drawImage(img,x,y,width,height);
+          
+
+          params.canvas.onmousemove = function(e) {
+            if (!params.canvas.isDrawing) {
+               return;
+            }
+            var x = e.pageX - this.offsetLeft;
+            var y = e.pageY - this.offsetTop;
+            var radius = 10; // or whatever
+            var fillColor = '#ff0000';
+            ctx.globalCompositeOperation = 'destination-out';
+            ctx.fillCircle(x, y, radius, fillColor);
+          };
+          params.canvas.onmousedown = function(e) {
+              params.canvas.isDrawing = true;
+          };
+          params.canvas.onmouseup = function(e) {
+              params.canvas.isDrawing = false;
+          };
+
+          ctx.drawImage(img,bounds.min.x,bounds.min.y,size.x,size.y);
+      };
+    }
+    
+  </script>
+
+</body>
+</html>
