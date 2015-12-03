@@ -38,3 +38,7 @@ function drawingOnCanvas(canvasOverlay, params) {
 ```
 
 "erasing" parts of the canvas overlay is done by setting a circle under the mouse to trasnparent, [this process.](http://jsfiddle.net/ArtBIT/WUXDb/1/)
+
+## TODO
+- I would like to make this a "story" platform where people can highlight areas of the city that are interesting scratch-offs".  Immindent domain, transit projects, landfill development, etc all make for interesting changes to explore.
+- Vector Overlays - User could add vector overlays to an area, saying "scratch here to reveal an urban highway" or whatever, with a blurb or narrative about the history of what they are highlighting. 
