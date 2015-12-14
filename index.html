@@ -3,116 +3,160 @@
   <meta charset="UTF-8">
   <title>Document</title>
   <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
   <style type="text/css">
     #map {
       width:100%;
       height:600px;
     }
+
+    .buttons {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      margin: 0;
+    }
   </style>
 </head>
 <body>
-  <div id="map"></div>
+
+  <div id="map">
+  </div>
+  <div class="btn-group btn-group-sm buttons" role="group" aria-label="...">
+    <button id="modePanAndZoom" type="button" class="btn btn-default"><span class="glyphicon glyphicon-move" aria-hidden="true"></span> Pan & Zoom Map</button>
+    <button id="modeScratchoff" type="button" class="btn btn-default"><span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Scratch Off!</button>
+  </div>
 
 
   <script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
-  <script src="js/l.canvasoverlay.js"></script>
+  <!--  // <script src="js/l.canvasoverlay.js"></script> -->
+  <script src="https://code.jquery.com/jquery-2.1.4.js"></script>
+  <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/mustache.js/2.2.0/mustache.js"></script>
   <script src="js/data.js" charset="utf-8"></script>
   <script>
+    var isDrawing,
+    currentOffset,
+    scratchoffMode = false;
 
-    // var layer = L.tileLayer('http://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png',{
-    //   attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
-    // });
+    var map = L.map('map').setView([40.7,-73.99], 14);
 
-    googleSat = L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
-          maxZoom: 20,
-          subdomains:['mt0','mt1','mt2','mt3']
+    //Add bottom layer
+    L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
+      maxZoom: 20,
+      subdomains:['mt0','mt1','mt2','mt3']
+    }).addTo(map);
+
+
+
+    //add top (canvas tile) layer
+    var canvasTiles = L.tileLayer.canvas({tileSize:256});
+
+    canvasTiles.drawTile = function(canvas, tilePoint, zoom) {
+      var ctx = canvas.getContext('2d');
+      var img = new Image();
+      img.src = Mustache.render("scripts/tiles/{{z}}/{{x}}/{{y}}.png",{
+        z: zoom,
+        x:tilePoint.x,
+        y:tilePoint.y
+      })
+      img.onload = function() {
+        ctx.drawImage(img,0,0);
+      };   
+    };
+    canvasTiles.addTo(map);
+
+    //TODO: viewreset is triggered before the canvas elements load.
+    //setListeners() must be called after all of the canvas elements exist.
+    //figure out what even to listen for (canvasTiles.on('load') does not work either)
+    map.on('viewreset',function(){
+      setTimeout(function() {
+        setListeners();
+      },1000)
+    })
+    setListeners();
+
+
+    //Button Group Click Handlers
+    $('#modePanAndZoom').click(function(){
+      //Enable drag and zoom handlers.
+      map.dragging.enable();
+      map.touchZoom.enable();
+      map.doubleClickZoom.enable();
+      map.scrollWheelZoom.enable();
+
+      scratchoffMode = false;
+    });
+
+    $('#modeScratchoff').click(function(){
+      //Disable drag and zoom handlers.
+      map.dragging.disable();
+      map.touchZoom.disable();
+      map.doubleClickZoom.disable();
+      map.scrollWheelZoom.disable();
+
+      scratchoffMode = true;
+    });
+
+    //when the canvaslayer adds new canvas tiles, these listeners need to be set again
+    function setListeners() {
+
+      $( "canvas" ).mousemove(function(e) {
+        if(scratchoffMode) {
+          draw($(this),e);
+        }
       });
 
-    var map = L.map('map').setView([40.68,-74.01], 16);
+      $( "canvas").mousedown(function(e) {
+        if(scratchoffMode) {
+          isDrawing=true;
+          draw($(this),e);
+        } 
+      })
 
-    // Disable drag and zoom handlers.
-    map.dragging.disable();
-    map.touchZoom.disable();
-    map.doubleClickZoom.disable();
-    map.scrollWheelZoom.disable();
+      $( "canvas").mouseup(function(e) {
+        if(scratchoffMode) {
+          isDrawing=false;
+        }
+      })   
+    }
 
-    googleSat.addTo(map);
+    var fillCircle = function(x, y, radius, fillColor, strokeColor  ) {
+      this.moveTo(x, y);
 
-    var southWest = L.latLng(40.66503200572965, -74.05474012462436),
-    northEast = L.latLng(40.698903681111005, -73.99383845433859),
-    imgBounds = L.latLngBounds(southWest, northEast);
+      //draw the stroke
+      this.globalCompositeOperation = 'source-over';
+      this.lineWidth = 2;
+      this.strokeStyle = strokeColor;
+      this.arc(x, y, radius, 0, Math.PI * 2, false);
+      this.stroke();
 
-    // var canvas = document.getElementById('canvas1');
-    // var context = canvas.getContext('2d');
-
-    var img = new Image();
-    img.src = "img/redhook.png"; 
-    img.onload = function() {
-       initCanvas();
+      //draw the fill
+      this.globalCompositeOperation = 'destination-out';
+      this.fillStyle = fillColor;
+      this.arc(x, y, radius-5, 0, Math.PI * 2, false);
+      this.fill();
     };
 
-    
+    function draw(element, e) {
+      if(!isDrawing) {
+        return
+      }
 
-    var fillCircle = function(x, y, radius, fillColor) {
-            this.fillStyle = fillColor;
-            this.beginPath();
-            this.moveTo(x, y);
-            this.arc(x, y, radius, 0, Math.PI * 2, false);
-            this.fill();
-        };
+      var ctx = element[0].getContext('2d');
 
-      
+      ctx.fillCircle = fillCircle;
+      var x = e.offsetX;
+      var y = e.offsetY;
+      var radius = 30; // or whatever
+      var fillColor = '#ff0000';
+      var strokeColor = '#ffffff';
 
-
-    function initCanvas() {
-      L.canvasOverlay()
-      .drawing(drawingOnCanvas)
-      .addTo(map);
-
-      function drawingOnCanvas(canvasOverlay, params) {
-          console.log('drawingOnCanvas')
-          console.log(params);
-          var ctx = params.canvas.getContext('2d');
-
-          ctx.fillCircle = fillCircle;
-      
-
-          ctx.clearRect(0, 0, params.canvas.width, params.canvas.height); 
-
-          var bounds = new L.Bounds(
-            map.latLngToContainerPoint(imgBounds.getNorthWest()),
-            map.latLngToContainerPoint(imgBounds.getSouthEast()));
-          
-          var size = bounds.getSize();
-          console.log(size);
-
-          console.log("bounds",bounds)
-          //context.drawImage(img,x,y,width,height);
-          
-
-          params.canvas.onmousemove = function(e) {
-            if (!params.canvas.isDrawing) {
-               return;
-            }
-            var x = e.pageX - this.offsetLeft;
-            var y = e.pageY - this.offsetTop;
-            var radius = 10; // or whatever
-            var fillColor = '#ff0000';
-            ctx.globalCompositeOperation = 'destination-out';
-            ctx.fillCircle(x, y, radius, fillColor);
-          };
-          params.canvas.onmousedown = function(e) {
-              params.canvas.isDrawing = true;
-          };
-          params.canvas.onmouseup = function(e) {
-              params.canvas.isDrawing = false;
-          };
-
-          ctx.drawImage(img,bounds.min.x,bounds.min.y,size.x,size.y);
-      };
+      ctx.fillCircle(x, y, radius, fillColor, strokeColor);
     }
-    
-  </script>
+
+
+</script>
 
 </body>
 </html>
