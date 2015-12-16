@@ -142,19 +142,81 @@
       if(!isDrawing) {
         return
       }
-
-      var ctx = element[0].getContext('2d');
-
-      ctx.fillCircle = fillCircle;
       var x = e.offsetX;
       var y = e.offsetY;
+
       var radius = 30; // or whatever
       var fillColor = '#ff0000';
       var strokeColor = '#ffffff';
 
+      //check to see if the cursor is near the edge of a tile
+
+      var left = (x < radius ? true : false);
+      var top = (y < radius ? true : false); 
+      var right = (x > (256-radius) ? true : false);
+      var bottom = (y > (256-radius) ? true : false);
+
+
+
+      //whichever are true, draw in those as well
+      (top ? outerDraw(element,'top'):null);
+      (bottom ? outerDraw(element,'bottom'):null);
+      (left ? outerDraw(element,'left'):null);
+      (right ? outerDraw(element,'right'):null);
+
+    
+
+
+      var ctx = element[0].getContext('2d');
+
+      ctx.fillCircle = fillCircle;
+      
+
+
       ctx.fillCircle(x, y, radius, fillColor, strokeColor);
     }
 
+function outerDraw(element, location) {
+  console.log(element,location);
+  var origin = {
+    top: element[0].offsetTop,
+    left: element[0].offsetLeft
+  }
+  var target;
+
+  if (location == 'right') {
+    target = {
+      top: origin.top,
+      left: origin.left + 256
+    }
+  }
+  if (location == 'left') {
+    target = {
+      top: origin.top,
+      left: origin.left - 256
+    }
+  }
+  if (location == 'top') {
+    target = {
+      top: origin.top - 256,
+      left: origin.left
+    }
+  }
+  if (location == 'bottom') {
+    target = {
+      top: origin.top + 256,
+      left: origin.left
+    }
+  }
+  console.log(target);
+
+  $('canvas').each(function(i) {
+    if($(this).css('top') == target.top + 'px' && $(this).css('left') == target.left + 'px') {
+      //TODO, draw outside the bounds of this tile so the effect is seamless
+      //$(this).fadeOut();
+    }
+  });
+}
 
 </script>
 
