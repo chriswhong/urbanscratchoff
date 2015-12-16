@@ -55,7 +55,12 @@
     canvasTiles.drawTile = function(canvas, tilePoint, zoom) {
       var ctx = canvas.getContext('2d');
       var img = new Image();
-      img.src = Mustache.render("scripts/tiles/{{z}}/{{x}}/{{y}}.png",{
+      // img.src = Mustache.render("scripts/tiles/{{z}}/{{x}}/{{y}}.png",{
+      //   z: zoom,
+      //   x:tilePoint.x,
+      //   y:tilePoint.y
+      // })
+      img.src = Mustache.render("http://jfxart.com/tiles/{{z}}/{{x}}/{{y}}.png",{
         z: zoom,
         x:tilePoint.x,
         y:tilePoint.y
