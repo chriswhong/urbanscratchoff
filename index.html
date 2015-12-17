@@ -37,7 +37,10 @@
   <script>
     var isDrawing,
     currentOffset,
-    scratchoffMode = false;
+    scratchoffMode = false,
+    radius,
+    fillColor,
+    strokeColor;
 
     var map = L.map('map').setView([40.7,-73.99], 14);
 
@@ -145,26 +148,30 @@
       var x = e.offsetX;
       var y = e.offsetY;
 
-      var radius = 30; // or whatever
-      var fillColor = '#ff0000';
-      var strokeColor = '#ffffff';
+      radius = 30; // or whatever
+      fillColor = '#ff0000';
+      strokeColor = '#ffffff';
 
       //check to see if the cursor is near the edge of a tile
+      var buffer = { 
+        top: (y < radius ? true : false),
+        right: (x > (256-radius) ? true : false),
+        left: (x < radius ? true : false),
+        bottom: (y > (256-radius) ? true : false)
+      }
 
-      var left = (x < radius ? true : false);
-      var top = (y < radius ? true : false); 
-      var right = (x > (256-radius) ? true : false);
-      var bottom = (y > (256-radius) ? true : false);
+      console.log(buffer);
 
+      if( buffer.top || buffer.right || buffer.bottom || buffer.left ) {
+        outerDraw(element, buffer,x,y);
+      }
+      
 
-
-      //whichever are true, draw in those as well
-      (top ? outerDraw(element,'top'):null);
-      (bottom ? outerDraw(element,'bottom'):null);
-      (left ? outerDraw(element,'left'):null);
-      (right ? outerDraw(element,'right'):null);
-
-    
+      // //whichever are true, draw in those as well
+      // (top ? outerDraw(element,'top'):null);
+      // (bottom ? outerDraw(element,'bottom'):null);
+      // (left ? outerDraw(element,'left'):null);
+      // (right ? outerDraw(element,'right'):null);
 
 
       var ctx = element[0].getContext('2d');
@@ -176,44 +183,57 @@
       ctx.fillCircle(x, y, radius, fillColor, strokeColor);
     }
 
-function outerDraw(element, location) {
-  console.log(element,location);
+function outerDraw(element, buffer,drawX,drawY) {
   var origin = {
     top: element[0].offsetTop,
     left: element[0].offsetLeft
   }
-  var target;
 
-  if (location == 'right') {
-    target = {
-      top: origin.top,
-      left: origin.left + 256
-    }
+  //build an array of tiles to be drawn into
+  //set bounds of target based on which directions are true in buffer
+  var range = {
+    xMin: origin.left,
+    xMax: origin.left+256,
+    yMin: origin.top,
+    yMax: origin.top+256
   }
-  if (location == 'left') {
-    target = {
-      top: origin.top,
-      left: origin.left - 256
-    }
+
+  if (buffer.top) {
+    range.yMin = origin.top - 256;
   }
-  if (location == 'top') {
-    target = {
-      top: origin.top - 256,
-      left: origin.left
-    }
+  if (buffer.right) {
+    range.xMax = origin.left + 512;
   }
-  if (location == 'bottom') {
-    target = {
-      top: origin.top + 256,
-      left: origin.left
-    }
+  if (buffer.bottom) {
+    range.yMax = origin.top + 512;
   }
-  console.log(target);
+  if (buffer.left) {
+    range.xMin = origin.left - 256;
+  }
+
+ 
 
   $('canvas').each(function(i) {
-    if($(this).css('top') == target.top + 'px' && $(this).css('left') == target.left + 'px') {
-      //TODO, draw outside the bounds of this tile so the effect is seamless
-      //$(this).fadeOut();
+    var x = parseInt($(this).css('left')),
+      y = parseInt($(this).css('top'));
+
+    if(x==origin.left && y==origin.top) {
+      return
+    }
+
+    if( x >= range.xMin && x < range.xMax ) {
+      if( y >= range.yMin && y < range.yMax ) {
+        console.log(this);
+        var ctx = this.getContext('2d');
+
+        ctx.fillCircle = fillCircle;
+      
+        var offsetX = origin.left - x,
+        offsetY = origin.top - y;
+        console.log(offsetX,offsetY);
+
+        ctx.fillCircle(drawX + offsetX, drawY + offsetY, radius, fillColor, strokeColor);
+      }
     }
   });
 }
