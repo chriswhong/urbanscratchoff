@@ -53,7 +53,7 @@
 
 
     //add top (canvas tile) layer
-    var canvasTiles = L.tileLayer.canvas({tileSize:256});
+    var canvasTiles = L.tileLayer.canvas({tileSize:256,unloadInvisibleTiles:true});
 
     canvasTiles.drawTile = function(canvas, tilePoint, zoom) {
       var ctx = canvas.getContext('2d');
@@ -79,6 +79,10 @@
     })
     setListeners();
 
+    canvasTiles.on('tileload',function() {
+      setListeners();
+    })
+
 
     //Button Group Click Handlers
     $('#modePanAndZoom').click(function(){
@@ -103,21 +107,21 @@
 
     //when the canvaslayer adds new canvas tiles, these listeners need to be set again
     function setListeners() {
+      $("canvas").unbind()
+        .mousemove(function(e) {
+          if(scratchoffMode) {
+            draw($(this),e);
+          }
+        })
 
-      $( "canvas" ).mousemove(function(e) {
+        .mousedown(function(e) {
         if(scratchoffMode) {
-          draw($(this),e);
-        }
-      });
+            isDrawing=true;
+            draw($(this),e);
+          } 
+        })
 
-      $( "canvas").mousedown(function(e) {
-        if(scratchoffMode) {
-          isDrawing=true;
-          draw($(this),e);
-        } 
-      })
-
-      $( "canvas").mouseup(function(e) {
+        .mouseup(function(e) {
         if(scratchoffMode) {
           isDrawing=false;
         }
@@ -160,7 +164,7 @@
         bottom: (y > (256-radius) ? true : false)
       }
 
-      console.log(buffer);
+  
 
       if( buffer.top || buffer.right || buffer.bottom || buffer.left ) {
         outerDraw(element, buffer,x,y);
@@ -211,7 +215,7 @@ function outerDraw(element, buffer,drawX,drawY) {
     range.xMin = origin.left - 256;
   }
 
- 
+  console.log($('canvas').length)
 
   $('canvas').each(function(i) {
     var x = parseInt($(this).css('left')),
@@ -223,14 +227,14 @@ function outerDraw(element, buffer,drawX,drawY) {
 
     if( x >= range.xMin && x < range.xMax ) {
       if( y >= range.yMin && y < range.yMax ) {
-        console.log(this);
+      
         var ctx = this.getContext('2d');
 
         ctx.fillCircle = fillCircle;
       
         var offsetX = origin.left - x,
         offsetY = origin.top - y;
-        console.log(offsetX,offsetY);
+  
 
         ctx.fillCircle(drawX + offsetX, drawY + offsetY, radius, fillColor, strokeColor);
       }
