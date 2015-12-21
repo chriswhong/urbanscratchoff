@@ -5,249 +5,103 @@
   <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
   <style type="text/css">
+    html, body, .container {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    padding:0;
+    }
+
+    body {
+      padding-top: 50px;
+    }
+
     #map {
       width:100%;
-      height:600px;
+      height:100%;
     }
 
     .buttons {
       position: absolute;
-      top: 10px;
+      top: 60px;
       right: 10px;
       margin: 0;
+    }
+
+    .navbar .navbar-brand {
+      font-weight: bold;
+      font-size: 25px;
+      color: #FFFFFF;
+    }
+
+    .navbar {
+      background-image: linear-gradient(to bottom, #2b6988 0%, #1f4b61 100%);
+    }
+
+    .navbar-inverse .navbar-nav>li>a {
+      color: #fff;
     }
   </style>
 </head>
 <body>
-
-  <div id="map">
+    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container-fluid">
+        <div class="navbar-header">
+          <div class="navbar-icon-container">
+            <a href="#" class="navbar-icon pull-right visible-xs" id="nav-btn"><i class="fa fa-bars fa-lg white"></i></a>
+            <a href="#" class="navbar-icon pull-right visible-xs" id="sidebar-toggle-btn"><i class="fa fa-search fa-lg white"></i></a>
+          </div>
+          <a class="navbar-brand" href="#">Urban Scratchoff</a>
+        </div>
+        <div class="navbar-collapse collapse">
+          <form class="navbar-form navbar-right" role="search">
+            <div class="form-group has-feedback">
+                <span class="twitter-typeahead" style="position: static; display: block; direction: ltr;"><input id="searchbox" type="text" placeholder="Search" class="form-control tt-input" autocomplete="off" spellcheck="false" dir="auto" style="position: relative; vertical-align: top;"><pre aria-hidden="true" style="position: absolute; visibility: hidden; white-space: pre; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; font-style: normal; font-variant: normal; font-weight: 400; word-spacing: 0px; letter-spacing: 0px; text-indent: 0px; text-rendering: auto; text-transform: none;"></pre><span class="tt-dropdown-menu" style="position: absolute; top: 100%; left: 0px; z-index: 100; display: none; right: auto;"><div class="tt-dataset-Boroughs"></div><div class="tt-dataset-Theaters"></div><div class="tt-dataset-Museums"></div><div class="tt-dataset-GeoNames"></div></span></span>
+                <span id="searchicon" class="fa fa-search form-control-feedback"></span>
+            </div>
+          </form>
+          <ul class="nav navbar-nav">
+            <li><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="about-btn"><i class="fa fa-question-circle white"></i>&nbsp;&nbsp;About</a></li>
+            <li class="dropdown">
+              <a id="toolsDrop" href="#" role="button" class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false"><i class="fa fa-globe white"></i>&nbsp;&nbsp;Tools <b class="caret"></b></a>
+              <ul class="dropdown-menu">
+                <li><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="full-extent-btn"><i class="fa fa-arrows-alt"></i>&nbsp;&nbsp;Zoom To Full Extent</a></li>
+                <li><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="legend-btn"><i class="fa fa-picture-o"></i>&nbsp;&nbsp;Show Legend</a></li>
+                <li class="divider hidden-xs"></li>
+                <li><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="login-btn"><i class="fa fa-user"></i>&nbsp;&nbsp;Login</a></li>
+              </ul>
+            </li>
+            <li class="dropdown">
+                <a class="dropdown-toggle" id="downloadDrop" href="#" role="button" data-toggle="dropdown" aria-expanded="false"><i class="fa fa-cloud-download white"></i>&nbsp;&nbsp;Download <b class="caret"></b></a>
+                <ul class="dropdown-menu">
+                  <li><a href="data/boroughs.geojson" download="boroughs.geojson" target="_blank" data-toggle="collapse" data-target=".navbar-collapse.in"><i class="fa fa-download"></i>&nbsp;&nbsp;Boroughs</a></li>
+                  <li><a href="data/subways.geojson" download="subways.geojson" target="_blank" data-toggle="collapse" data-target=".navbar-collapse.in"><i class="fa fa-download"></i>&nbsp;&nbsp;Subway Lines</a></li>
+                  <li><a href="data/DOITT_THEATER_01_13SEPT2010.geojson" download="theaters.geojson" target="_blank" data-toggle="collapse" data-target=".navbar-collapse.in"><i class="fa fa-download"></i>&nbsp;&nbsp;Theaters</a></li>
+                  <li><a href="data/DOITT_MUSEUM_01_13SEPT2010.geojson" download="museums.geojson" target="_blank" data-toggle="collapse" data-target=".navbar-collapse.in"><i class="fa fa-download"></i>&nbsp;&nbsp;Museums</a></li>
+                </ul>
+            </li>
+            <li class="hidden-xs"><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="list-btn"><i class="fa fa-list white"></i>&nbsp;&nbsp;POI List</a></li>
+          </ul>
+        </div><!--/.navbar-collapse -->
+      </div>
+    </div>
+  <div class="container">
+      <div id="map">
   </div>
   <div class="btn-group btn-group-sm buttons" role="group" aria-label="...">
-    <button id="modePanAndZoom" type="button" class="btn btn-default"><span class="glyphicon glyphicon-move" aria-hidden="true"></span> Pan & Zoom Map</button>
-    <button id="modeScratchoff" type="button" class="btn btn-default"><span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Scratch Off!</button>
+    <button id="modePanAndZoom" type="button" class="btn btn-default btn-mode"><span class="glyphicon glyphicon-move" aria-hidden="true"></span> Pan & Zoom Map</button>
+    <button id="modeScratchoff" type="button" class="btn btn-default btn-mode"><span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Scratch Off!</button>
+  </div>
+
   </div>
 
 
   <script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
-  <!--  // <script src="js/l.canvasoverlay.js"></script> -->
   <script src="https://code.jquery.com/jquery-2.1.4.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+  <script type="js/routers/router.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/mustache.js/2.2.0/mustache.js"></script>
-  <script src="js/data.js" charset="utf-8"></script>
-  <script>
-    var isDrawing,
-    currentOffset,
-    scratchoffMode = false,
-    radius,
-    fillColor,
-    strokeColor;
-
-    var map = L.map('map').setView([40.7,-73.99], 14);
-
-    //Add bottom layer
-    L.tileLayer('http://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',{
-      maxZoom: 20,
-      subdomains:['mt0','mt1','mt2','mt3']
-    }).addTo(map);
-
-
-
-    //add top (canvas tile) layer
-    var canvasTiles = L.tileLayer.canvas({tileSize:256,unloadInvisibleTiles:true});
-
-    canvasTiles.drawTile = function(canvas, tilePoint, zoom) {
-      var ctx = canvas.getContext('2d');
-      var img = new Image();
-      // img.src = Mustache.render("scripts/tiles/{{z}}/{{x}}/{{y}}.png",{
-      //   z: zoom,
-      //   x:tilePoint.x,
-      //   y:tilePoint.y
-      // })
-      img.src = Mustache.render("http://jfxart.com/tiles/{{z}}/{{x}}/{{y}}.png",{
-        z: zoom,
-        x:tilePoint.x,
-        y:tilePoint.y
-      })
-      img.onload = function() {
-        ctx.drawImage(img,0,0);
-      };   
-    };
-    canvasTiles.addTo(map);
-
-    //TODO: viewreset is triggered before the canvas elements load.
-    //setListeners() must be called after all of the canvas elements exist.
-    //figure out what even to listen for (canvasTiles.on('load') does not work either)
-    map.on('viewreset',function(){
-      setTimeout(function() {
-        setListeners();
-      },1000)
-    })
-    setListeners();
-
-    canvasTiles.on('tileload',function() {
-      setListeners();
-    })
-
-
-    //Button Group Click Handlers
-    $('#modePanAndZoom').click(function(){
-      //Enable drag and zoom handlers.
-      map.dragging.enable();
-      map.touchZoom.enable();
-      map.doubleClickZoom.enable();
-      map.scrollWheelZoom.enable();
-
-      scratchoffMode = false;
-    });
-
-    $('#modeScratchoff').click(function(){
-      //Disable drag and zoom handlers.
-      map.dragging.disable();
-      map.touchZoom.disable();
-      map.doubleClickZoom.disable();
-      map.scrollWheelZoom.disable();
-
-      scratchoffMode = true;
-    });
-
-    //when the canvaslayer adds new canvas tiles, these listeners need to be set again
-    function setListeners() {
-      $("canvas").unbind()
-        .mousemove(function(e) {
-          if(scratchoffMode) {
-            draw($(this),e);
-          }
-        })
-
-        .mousedown(function(e) {
-        if(scratchoffMode) {
-            isDrawing=true;
-            draw($(this),e);
-          } 
-        })
-
-        .mouseup(function(e) {
-        if(scratchoffMode) {
-          isDrawing=false;
-        }
-      })   
-    }
-
-    var fillCircle = function(x, y, radius, fillColor, strokeColor  ) {
-      this.moveTo(x, y);
-
-      //draw the stroke
-      this.globalCompositeOperation = 'source-over';
-      this.lineWidth = 2;
-      this.strokeStyle = strokeColor;
-      this.arc(x, y, radius, 0, Math.PI * 2, false);
-      this.stroke();
-
-      //draw the fill
-      this.globalCompositeOperation = 'destination-out';
-      this.fillStyle = fillColor;
-      this.arc(x, y, radius-5, 0, Math.PI * 2, false);
-      this.fill();
-    };
-
-    function draw(element, e) {
-      if(!isDrawing) {
-        return
-      }
-      var x = e.offsetX;
-      var y = e.offsetY;
-
-      radius = 30; // or whatever
-      fillColor = '#ff0000';
-      strokeColor = '#ffffff';
-
-      //check to see if the cursor is near the edge of a tile
-      var buffer = { 
-        top: (y < radius ? true : false),
-        right: (x > (256-radius) ? true : false),
-        left: (x < radius ? true : false),
-        bottom: (y > (256-radius) ? true : false)
-      }
-
-  
-
-      if( buffer.top || buffer.right || buffer.bottom || buffer.left ) {
-        outerDraw(element, buffer,x,y);
-      }
-      
-
-      // //whichever are true, draw in those as well
-      // (top ? outerDraw(element,'top'):null);
-      // (bottom ? outerDraw(element,'bottom'):null);
-      // (left ? outerDraw(element,'left'):null);
-      // (right ? outerDraw(element,'right'):null);
-
-
-      var ctx = element[0].getContext('2d');
-
-      ctx.fillCircle = fillCircle;
-      
-
-
-      ctx.fillCircle(x, y, radius, fillColor, strokeColor);
-    }
-
-function outerDraw(element, buffer,drawX,drawY) {
-  var origin = {
-    top: element[0].offsetTop,
-    left: element[0].offsetLeft
-  }
-
-  //build an array of tiles to be drawn into
-  //set bounds of target based on which directions are true in buffer
-  var range = {
-    xMin: origin.left,
-    xMax: origin.left+256,
-    yMin: origin.top,
-    yMax: origin.top+256
-  }
-
-  if (buffer.top) {
-    range.yMin = origin.top - 256;
-  }
-  if (buffer.right) {
-    range.xMax = origin.left + 512;
-  }
-  if (buffer.bottom) {
-    range.yMax = origin.top + 512;
-  }
-  if (buffer.left) {
-    range.xMin = origin.left - 256;
-  }
-
-  console.log($('canvas').length)
-
-  $('canvas').each(function(i) {
-    var x = parseInt($(this).css('left')),
-      y = parseInt($(this).css('top'));
-
-    if(x==origin.left && y==origin.top) {
-      return
-    }
-
-    if( x >= range.xMin && x < range.xMax ) {
-      if( y >= range.yMin && y < range.yMax ) {
-      
-        var ctx = this.getContext('2d');
-
-        ctx.fillCircle = fillCircle;
-      
-        var offsetX = origin.left - x,
-        offsetY = origin.top - y;
-  
-
-        ctx.fillCircle(drawX + offsetX, drawY + offsetY, radius, fillColor, strokeColor);
-      }
-    }
-  });
-}
-
-</script>
+  <script src="js/script.js"></script>
 
 </body>
 </html>
