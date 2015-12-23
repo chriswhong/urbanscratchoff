@@ -1,7 +1,7 @@
 <html class="html">
 <head>
   <meta charset="UTF-8">
-  <title>Document</title>
+  <title>Urban Scratchoff</title>
   <link rel="stylesheet" href="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.css" />
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
   <style type="text/css">
@@ -17,15 +17,9 @@
     }
 
     #map {
-      width:100%;
+      width:auto;
       height:100%;
-    }
-
-    .buttons {
-      position: absolute;
-      top: 60px;
-      right: 10px;
-      margin: 0;
+      box-shadow: 0 0 10px rgba(0,0,0,0.55);
     }
 
     .navbar .navbar-brand {
@@ -41,6 +35,24 @@
     .navbar-inverse .navbar-nav>li>a {
       color: #fff;
     }
+
+    #sidebar {
+      width: 350px;
+      height: 100%;
+      max-width: 100%;
+      float: right;
+      -webkit-transition: all 0.25s ease-out;
+      -moz-transition: all 0.25s ease-out;
+      transition: all 0.25s ease-out;
+    }
+
+    .leaflet-control-geosearch {
+      display:none;
+    }
+
+    #twitter-widget-0 {
+      margin-top: 15px;
+    }
   </style>
 </head>
 <body>
@@ -54,15 +66,18 @@
           <a class="navbar-brand" href="#">Urban Scratchoff</a>
         </div>
         <div class="navbar-collapse collapse">
-          <form class="navbar-form navbar-right" role="search">
+          <div class="navbar-form navbar-right" role="search">
             <div class="form-group has-feedback">
-                <span class="twitter-typeahead" style="position: static; display: block; direction: ltr;"><input id="searchbox" type="text" placeholder="Search" class="form-control tt-input" autocomplete="off" spellcheck="false" dir="auto" style="position: relative; vertical-align: top;"><pre aria-hidden="true" style="position: absolute; visibility: hidden; white-space: pre; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; font-style: normal; font-variant: normal; font-weight: 400; word-spacing: 0px; letter-spacing: 0px; text-indent: 0px; text-rendering: auto; text-transform: none;"></pre><span class="tt-dropdown-menu" style="position: absolute; top: 100%; left: 0px; z-index: 100; display: none; right: auto;"><div class="tt-dataset-Boroughs"></div><div class="tt-dataset-Theaters"></div><div class="tt-dataset-Museums"></div><div class="tt-dataset-GeoNames"></div></span></span>
+                <span class="twitter-typeahead" style="position: static; display: block; direction: ltr;"><input id="searchbox" type="text" placeholder="Search for an address" class="form-control tt-input" autocomplete="off" spellcheck="false" dir="auto" style="position: relative; vertical-align: top;"><pre aria-hidden="true" style="position: absolute; visibility: hidden; white-space: pre; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; font-size: 14px; font-style: normal; font-variant: normal; font-weight: 400; word-spacing: 0px; letter-spacing: 0px; text-indent: 0px; text-rendering: auto; text-transform: none;"></pre><span class="tt-dropdown-menu" style="position: absolute; top: 100%; left: 0px; z-index: 100; display: none; right: auto;"><div class="tt-dataset-Boroughs"></div><div class="tt-dataset-Theaters"></div><div class="tt-dataset-Museums"></div><div class="tt-dataset-GeoNames"></div></span></span>
                 <span id="searchicon" class="fa fa-search form-control-feedback"></span>
             </div>
-          </form>
+          </div>
           <ul class="nav navbar-nav">
             <li><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="about-btn"><i class="fa fa-question-circle white"></i>&nbsp;&nbsp;About</a></li>
-            <li class="dropdown">
+            <li><a href="https://github.com/chriswhong/urbanscratchoff" data-toggle="collapse" data-target=".navbar-collapse.in" id="about-btn"><i class="fa fa-question-circle white"></i>&nbsp;&nbsp;Github</a></li>
+            <li><a href="https://twitter.com/share" class="twitter-share-button"{count} data-url="http://chriswhong.github.io/urbanscratchoff" data-text="Urban Scratchoff - Scratch away historical imagery of NYC" data-via="chris_whong">Tweet</a>
+<script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script></li>
+            <!-- <li class="dropdown">
               <a id="toolsDrop" href="#" role="button" class="dropdown-toggle" data-toggle="dropdown" aria-expanded="false"><i class="fa fa-globe white"></i>&nbsp;&nbsp;Tools <b class="caret"></b></a>
               <ul class="dropdown-menu">
                 <li><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="full-extent-btn"><i class="fa fa-arrows-alt"></i>&nbsp;&nbsp;Zoom To Full Extent</a></li>
@@ -80,23 +95,94 @@
                   <li><a href="data/DOITT_MUSEUM_01_13SEPT2010.geojson" download="museums.geojson" target="_blank" data-toggle="collapse" data-target=".navbar-collapse.in"><i class="fa fa-download"></i>&nbsp;&nbsp;Museums</a></li>
                 </ul>
             </li>
-            <li class="hidden-xs"><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="list-btn"><i class="fa fa-list white"></i>&nbsp;&nbsp;POI List</a></li>
+            <li class="hidden-xs"><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="list-btn"><i class="fa fa-list white"></i>&nbsp;&nbsp;POI List</a></li> -->
           </ul>
         </div><!--/.navbar-collapse -->
       </div>
     </div>
   <div class="container">
+      <div id="sidebar">
+        <div class="col-md-12">
+          <br/>
+          <h4>Welcome!</h4>
+          <p>Welcome to Urban Scratchoff!  This site gives you a clever way to explore historical aerial imagery of New York City.  You can click and drag on the map to "scratch off" the historical imagery and reveal the same location's present-day imagery.  Hit the swap button below to reverse the layers.  Have fun!</p>
+
+          <h4>Mode</h4>
+            <div class="btn-group btn-group-sm buttons" role="group" aria-label="...">
+              <button id="modePanAndZoom" type="button" class="btn btn-default btn-mode"><span class="glyphicon glyphicon-move" aria-hidden="true"></span> Pan & Zoom Map</button>
+              <button id="modeScratchoff" type="button" class="btn btn-default btn-mode active"><span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Scratch Off!</button>
+            </div>
+            <br/><br/>
+          <h4>Layer Order</h4>
+          <div class="col-md-4">
+            <button type="button" id="swap" class="btn btn-info" style="margin-top: 24px;
+}"><span class="glyphicon glyphicon-refresh" aria-hidden="true"></span> Swap</button>
+          </div>
+          <div class="col-md-8">
+
+            <button type="button" id="topLayerButton" class="btn btn-default"></button><br/><br/>
+            <button type="button" id="bottomLayerButton"class="btn btn-default"></button>
+            <br/><br/>  
+          </div>
+                  
+          <h4>Points of Interest</h4>
+          <p>Coming Soon!</p>
+
+        </div>
+      </div>
       <div id="map">
+          <div class="modal fade" id="aboutModal" tabindex="-1" role="dialog">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+          <div class="modal-header">
+            <button class="close" type="button" data-dismiss="modal" aria-hidden="true">&times;</button>
+            <h3 class="modal-title">About Urban Scratchoff</h3><p>A map hack by <a href="https://twitter.com/chris_whong">@chris_whong</a></p>
+          </div>
+          <div class="modal-body">
+       
+            <h5>Idea</h5>
+            <p>I often drive on the BQE, an interstate highway that snakes its way through Brooklyn.  I've learned about the massive number buildings that had to be demolished, and people displaced, to make way for this and other urban highways.  I wanted to allow the user to drag their mouse over the old buildings on a historical layer and "reveal" the highway beneath to get a better idea of the cost of progress.  This was the original concept.</p>
+            <p>After some hacking and getting a prototype working, scratching off parts of the city became downright addictive (especially waterfronts/docks, large construction projects, highways, etc.)  </p>
+
+            <h5>Tech</h5>
+            <p>The map is loading two layers.  The bottom layer is a normal leaflet.js TileLayer.  The top layer makes use of leaflet's Canvas TileLayer, essentially setting up a grid of 256x256 HTML canvases.  For each canvas, a tile image is requested from the top layer, and is drawn into the canvas.  When the user "Scratches" the canvas, they are drawing into the canvas using the 'destination-out' composite operation.  This turns the affected area transparent, allowing the bottom layer to show through!  Full tech blog post coming someday soon.</p>
+
+    
+            <h5>Imagery</h5>
+            <p>The historical imagery is provided by the New York Public Library (NYPL Labs) <a href="http://maps.nypl.org/warper/">Mapwarper</a> site -  "Sectional aerial maps of the City of New York / photographed and assembled under the direction of the chief engineer, July 1st, 1924."</p>  Mapwarper is a crowd-sourced imagery rectification tool.  If you see imagery that doesn't "line up" while using Urban Scratchoff, you can actually help out and fix the rectification points on the NYPL This layer is cached on my server.</p>
+
+            <p>The modern day imagery is <a href = "https://developer.mapquest.com/">Mapquest's OpenAerial</a> tileset</p>
+
+            <h5>Attribution & Thanks</h5>
+            <ul>
+              <li><a href="https://twitter.com/riordan">Dave Riordan</a> for answering an early tweet and pointing me to mapwarper</li>
+              <li><a href="https://twitter.com/recessionporn">John Krauss</a> and <a href="https://twitter.com/andrewxhill">Andrew Hill</a> for looking over my shoulder during development</li>
+              <li><a href="https://twitter.com/brymcbride">Bryan McBride</a> for making <a href="https://github.com/bmcbride/bootleaf">bootleaf</a>, an awesome template layout for leaflet maps & bootstrap</li>
+              <li><a href="https://twitter.com/pcrickard">Paul Crickard</a> and <a href="https://twitter.com/sr_spatial">Steve Romalewski</a> for testing out the first prototype and giving feedback</li>
+              <li><a href="https://github.com/smeijer/L.GeoSearch">L.GeoSearch Plugin</a> for being awesome and easy to customize for NYC, & Google Maps for their geocoder</li>
+            </ul>
+
+            <h5> Todo </h5>
+            <p>I would like to make it so that anyone can submit points of interest.  Everyone will be greeted with a marked up map full of interesting scratchoffs to explore.</p>
+
+            <strong><a href="https://github.com/chriswhong/urbanscratchoff">The code is on github</a>.  If you find a bug, please open an issue.  If you want to contribute or fork for your city, have at it!</strong>
+
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
+          </div>
+        </div><!-- /.modal-content -->
+      </div><!-- /.modal-dialog -->
+    </div><!-- /.modal -->
   </div>
-  <div class="btn-group btn-group-sm buttons" role="group" aria-label="...">
-    <button id="modePanAndZoom" type="button" class="btn btn-default btn-mode"><span class="glyphicon glyphicon-move" aria-hidden="true"></span> Pan & Zoom Map</button>
-    <button id="modeScratchoff" type="button" class="btn btn-default btn-mode"><span class="glyphicon glyphicon-edit" aria-hidden="true"></span> Scratch Off!</button>
-  </div>
+
 
   </div>
 
 
   <script src="http://cdn.leafletjs.com/leaflet/v0.7.7/leaflet.js"></script>
+  <script src="js/l.control.geosearch.js"></script>
+  <script src="js/l.geosearch.provider.google.js"></script>
   <script src="https://code.jquery.com/jquery-2.1.4.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
   <script type="js/routers/router.js"></script>
