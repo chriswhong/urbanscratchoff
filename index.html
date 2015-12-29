@@ -53,6 +53,11 @@
     #twitter-widget-0 {
       margin-top: 15px;
     }
+
+    #sidebar-footer {
+      position: absolute;
+      bottom: 0;
+    }
   </style>
 </head>
 <body>
@@ -72,9 +77,12 @@
                 <span id="searchicon" class="fa fa-search form-control-feedback"></span>
             </div>
           </div>
+
+
           <ul class="nav navbar-nav">
             <li><a href="#" data-toggle="collapse" data-target=".navbar-collapse.in" id="about-btn"><i class="fa fa-question-circle white"></i>&nbsp;&nbsp;About</a></li>
             <li><a href="https://github.com/chriswhong/urbanscratchoff" data-toggle="collapse" data-target=".navbar-collapse.in" id="about-btn"><i class="fa fa-question-circle white"></i>&nbsp;&nbsp;Github</a></li>
+            <li><a href="http://chriswhong.com/local/building-urban-scratchoff/">Blog Post</a></li>
             <li><a href="https://twitter.com/share" class="twitter-share-button"{count} data-url="http://chriswhong.github.io/urbanscratchoff" data-text="Urban Scratchoff - Scratch away historical imagery of NYC" data-via="chris_whong">Tweet</a>
 <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+'://platform.twitter.com/widgets.js';fjs.parentNode.insertBefore(js,fjs);}}(document, 'script', 'twitter-wjs');</script></li>
             <!-- <li class="dropdown">
@@ -127,8 +135,12 @@
                   
           <h4>Points of Interest</h4>
           <p>Coming Soon!</p>
+  
+        
+    
 
         </div>
+        <div id="sidebar-footer" class="col-md-12"><p>A map hack by  <a href="https://twitter.com/chris_whong">@chris_whong</a></p></div> 
       </div>
       <div id="map">
           <div class="modal fade" id="aboutModal" tabindex="-1" role="dialog">
@@ -145,7 +157,7 @@
             <p>After some hacking and getting a prototype working, scratching off parts of the city became downright addictive (especially waterfronts/docks, large construction projects, highways, etc.)  </p>
 
             <h5>Tech</h5>
-            <p>The map is loading two layers.  The bottom layer is a normal leaflet.js TileLayer.  The top layer makes use of leaflet's Canvas TileLayer, essentially setting up a grid of 256x256 HTML canvases.  For each canvas, a tile image is requested from the top layer, and is drawn into the canvas.  When the user "Scratches" the canvas, they are drawing into the canvas using the 'destination-out' composite operation.  This turns the affected area transparent, allowing the bottom layer to show through!  Full tech blog post coming someday soon.</p>
+            <p>The map is loading two layers.  The bottom layer is a normal leaflet.js TileLayer.  The top layer makes use of leaflet's Canvas TileLayer, essentially setting up a grid of 256x256 HTML canvases.  For each canvas, a tile image is requested from the top layer, and is drawn into the canvas.  When the user "Scratches" the canvas, they are drawing into the canvas using the 'destination-out' composite operation.  This turns the affected area transparent, allowing the bottom layer to show through!  Here's <a href="http://chriswhong.com/local/building-urban-scratchoff/">a blog post about how and why I built Urban Scratchoff.</a></p>
 
     
             <h5>Imagery</h5>
