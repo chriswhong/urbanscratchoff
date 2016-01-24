@@ -1,3 +1,5 @@
+$(document).ready(function () {
+
 //dem globals
 var isDrawing,
 currentOffset,
@@ -226,6 +228,7 @@ function draw(element, e) {
     bottom: (y > (256-radius) ? true : false)
   }
 
+
   if( buffer.top || buffer.right || buffer.bottom || buffer.left ) {
     outerDraw(element, buffer,x,y);
   }
@@ -238,8 +241,8 @@ function draw(element, e) {
 
 function outerDraw(element, buffer,drawX,drawY) {
   var origin = {
-    top: element[0].offsetTop,
-    left: element[0].offsetLeft
+    top: $(element[0]).position().top,
+    left: $(element[0]).position().left
   }
 
   //build an array of tiles to be drawn into
@@ -266,8 +269,10 @@ function outerDraw(element, buffer,drawX,drawY) {
 
 
   $('canvas').each(function(i) {
-    var x = parseInt($(this).css('left')),
-      y = parseInt($(this).css('top'));
+
+
+    var x = parseInt($(this).position().left),
+      y = parseInt($(this).position().top);
 
     if(x==origin.left && y==origin.top) {
       return
@@ -281,7 +286,7 @@ function outerDraw(element, buffer,drawX,drawY) {
         ctx.fillCircle = fillCircle;
       
         var offsetX = origin.left - x,
-        offsetY = origin.top - y;
+        offsetY = origin.top - y ;
   
 
         ctx.fillCircle(drawX + offsetX, drawY + offsetY, radius, fillColor, strokeColor);
@@ -289,3 +294,5 @@ function outerDraw(element, buffer,drawX,drawY) {
     }
   });
     }
+
+});
