@@ -40,7 +40,7 @@ if (view) {
 var tileLayers = [
   {
     name: 'Present Day Aerials',
-    url: 'http://otile1.mqcdn.com/tiles/1.0.0/sat/{z}/{x}/{y}.jpg'
+    url: 'http://www.orthos.dhses.ny.gov/arcgis/rest/services/2010/MapServer/tile/{z}/{y}/{x}'
   },
   {
     name: '1924 Aerials',
