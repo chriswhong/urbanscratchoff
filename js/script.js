@@ -36,16 +36,15 @@ if (view) {
   map.setView([40.7,-73.99], 14);
 }
 
-
 var tileLayers = [
   {
     name: 'Present Day Aerials',
-    url: 'http://www.orthos.dhses.ny.gov/arcgis/rest/services/2010/MapServer/tile/{z}/{y}/{x}'
+    url: 'https://orthos.its.ny.gov/arcgis/rest/services/wms/2018/MapServer/tile/{z}/{y}/{x}'
   },
   {
     name: '1924 Aerials',
     url: 'http://tilecache.lolspec.com/tms/1924/{z}/{x}/{y}.png'
-  }      
+  }
 ];
 
 addTileLayers(tileLayers);
@@ -53,7 +52,7 @@ addTileLayers(tileLayers);
 function addTileLayers(tileLayers) {
   var bottomLayer = tileLayers[0],
     topLayer = tileLayers[1];
- 
+
   $('#bottomLayerButton').text(bottomLayer.name);
   $('#topLayerButton').text(topLayer.name);
 
@@ -78,7 +77,7 @@ function addTileLayers(tileLayers) {
     })
     img.onload = function() {
       ctx.drawImage(img,0,0);
-    };   
+    };
   };
   canvasTiles.addTo(map);
   setListeners();
@@ -127,7 +126,7 @@ $('#modePanAndZoom').click(function() {
 $('#modeScratchoff').click(function(){
   $('.btn-mode').removeClass('active');
   $(this).addClass('active');
-  
+
   //Disable drag and zoom handlers.
   map.dragging.disable();
   map.touchZoom.disable();
@@ -173,14 +172,14 @@ function setListeners() {
     if(scratchoffMode) {
         isDrawing=true;
         draw($(this),e);
-      } 
+      }
     })
 
     .mouseup(function(e) {
     if(scratchoffMode) {
       isDrawing=false;
     }
-  })   
+  })
 }
 
 //updates the URL hash based on the current view
@@ -221,7 +220,7 @@ function draw(element, e) {
   strokeColor = '#ffffff';
 
   //check to see if the cursor is near the edge of a tile
-  var buffer = { 
+  var buffer = {
     top: (y < radius ? true : false),
     right: (x > (256-radius) ? true : false),
     left: (x < radius ? true : false),
@@ -232,7 +231,7 @@ function draw(element, e) {
   if( buffer.top || buffer.right || buffer.bottom || buffer.left ) {
     outerDraw(element, buffer,x,y);
   }
-  
+
   var ctx = element[0].getContext('2d');
 
   ctx.fillCircle = fillCircle;
@@ -280,14 +279,14 @@ function outerDraw(element, buffer,drawX,drawY) {
 
     if( x >= range.xMin && x < range.xMax ) {
       if( y >= range.yMin && y < range.yMax ) {
-      
+
         var ctx = this.getContext('2d');
 
         ctx.fillCircle = fillCircle;
-      
+
         var offsetX = origin.left - x,
         offsetY = origin.top - y ;
-  
+
 
         ctx.fillCircle(drawX + offsetX, drawY + offsetY, radius, fillColor, strokeColor);
       }
