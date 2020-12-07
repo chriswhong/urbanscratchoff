@@ -43,7 +43,7 @@ var tileLayers = [
   },
   {
     name: '1924 Aerials',
-    url: 'http://tilecache.lolspec.com/tms/1924/{z}/{x}/{y}.png'
+    url: 'http://tilecache.chriswhong.com/tms/1924/{z}/{x}/{y}.png'
   }
 ];
 
