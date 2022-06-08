@@ -1,0 +1,61 @@
+html,
+body,
+.container {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  padding: 0;
+}
+
+body {
+  padding-top: 50px;
+}
+
+#map {
+  width: auto;
+  height: 100%;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.55);
+}
+
+.navbar .navbar-brand {
+  font-weight: bold;
+  font-size: 25px;
+  color: #ffffff;
+}
+
+.navbar {
+  background-image: linear-gradient(to bottom, #2b6988 0%, #1f4b61 100%);
+}
+
+.navbar-inverse .navbar-nav > li > a {
+  color: #fff;
+}
+
+#sidebar {
+  width: 350px;
+  height: 100%;
+  max-width: 100%;
+  float: right;
+  -webkit-transition: all 0.25s ease-out;
+  -moz-transition: all 0.25s ease-out;
+  transition: all 0.25s ease-out;
+}
+
+.leaflet-control-geosearch {
+  display: none;
+}
+
+#twitter-widget-0 {
+  margin-top: 15px;
+  margin-right: 15px;
+}
+
+#sidebar-footer {
+  position: absolute;
+  bottom: 0;
+}
+
+.layer-name {
+  font-weight: bold;
+  font-size: 1.5rem;
+}
