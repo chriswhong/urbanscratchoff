@@ -440,7 +440,7 @@ $(document).ready(function () {
     var radiusMeters = BRUSH_RADIUS * metersPerPixel(lngLat.lat, tileZ);
     pendingCircles.push(
       turf.circle([lngLat.lng, lngLat.lat], radiusMeters, {
-        steps: 12,
+        steps: 24,
         units: "meters",
       })
     );

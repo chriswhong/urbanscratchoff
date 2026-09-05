@@ -13,7 +13,7 @@ var flushCount = 0;
 // degrees and kept small relative to the brush radius so the shape doesn't
 // visibly change.
 var SIMPLIFY_TOLERANCE = 0.000004;
-var SIMPLIFY_EVERY = 12;
+var SIMPLIFY_EVERY = 6; // circles now carry 2x the vertices (24-sided, for roundness), so simplify twice as often to keep total complexity growth in check
 
 self.onmessage = function (e) {
   var msg = e.data;
