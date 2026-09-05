@@ -12,11 +12,15 @@
 
   <div id="panel"
     class="fixed top-4 left-4 right-4 sm:right-auto sm:w-[320px] z-40 bg-white/95 backdrop-blur rounded-xl shadow-lg p-4">
-    <h1 class="text-lg font-bold text-gray-900 m-0">Urban Scratchoff</h1>
+    <h1 class="text-2xl font-extrabold tracking-tight m-0 flex items-center gap-2">
+      <img src="/assets/penny.png" alt="" class="coin inline-block w-8 h-8 rounded-full shadow-sm" />
+      <span class="bg-gradient-to-r from-sky-600 to-blue-900 bg-clip-text text-transparent">Urban
+        Scratchoff</span>
+    </h1>
     <p class="text-xs text-gray-500 mt-0.5 mb-0">by <a href="https://bsky.app/profile/chriswhong.bsky.social"
         target="_blank" rel="noopener" class="font-medium text-sky-600 hover:underline">Chris Whong</a></p>
 
-    <p id="intro-cta" class="text-sm text-gray-600 mt-1.5 mb-0">
+    <p class="text-sm text-gray-600 mt-1.5 mb-0">
       1924 aerial imagery of NYC is hiding the present day underneath. Click and drag on the map to scratch it away.
     </p>
 
@@ -53,11 +57,21 @@
       </div>
     </div>
 
-    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 pt-3 border-t border-gray-200 text-sm font-medium text-sky-700">
+    <div
+      class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 pt-3 border-t border-gray-200 text-sm font-medium text-sky-700">
       <a href="#" id="about-btn">About</a>
-      <a href="https://github.com/chriswhong/urbanscratchoff" target="_blank" rel="noopener">Github</a>
-      <a href="http://chriswhong.com/local/building-urban-scratchoff/" target="_blank" rel="noopener">Blog Post</a>
-      <a href="https://bsky.app/profile/chriswhong.bsky.social" target="_blank" rel="noopener">Bluesky</a>
+      <a href="http://chriswhong.com/local/building-urban-scratchoff/" target="_blank" rel="noopener"
+        class="inline-flex items-center gap-1">
+        Blog Post <i class="fa-solid fa-arrow-up-right-from-square text-xs"></i>
+      </a>
+      <a href="https://github.com/chriswhong/urbanscratchoff" target="_blank" rel="noopener" aria-label="Github"
+        title="Github">
+        <i class="fa-brands fa-github text-lg"></i>
+      </a>
+      <a href="https://bsky.app/profile/chriswhong.bsky.social" target="_blank" rel="noopener" aria-label="Bluesky"
+        title="Bluesky">
+        <i class="fa-brands fa-bluesky text-lg"></i>
+      </a>
     </div>
   </div>
 
@@ -66,8 +80,8 @@
       <div class="flex items-start justify-between gap-4 p-4 border-b border-gray-200">
         <div>
           <h3 class="text-xl font-bold m-0">About Urban Scratchoff</h3>
-          <p class="text-sm text-gray-500 m-0">A map hack by <a
-              href="https://bsky.app/profile/chriswhong.bsky.social" class="text-sky-600">@chriswhong.bsky.social</a>
+          <p class="text-sm text-gray-500 m-0">A web map by <a
+              href="https://bsky.app/profile/chriswhong.bsky.social" target="_blank" rel="noopener" class="text-sky-600">@chriswhong.bsky.social</a>
           </p>
         </div>
         <button type="button" class="about-modal-close text-2xl leading-none text-gray-400 hover:text-gray-700"
@@ -85,7 +99,7 @@
           addictive (especially waterfronts/docks, large construction projects, highways, etc.)</p>
 
         <h5 class="font-bold text-base">Tech</h5>
-        <p>The map runs on <a href="https://maplibre.org/" class="text-sky-600">MapLibre GL JS</a> instead of
+        <p>The map runs on <a href="https://maplibre.org/" target="_blank" rel="noopener" class="text-sky-600">MapLibre GL JS</a> instead of
           Leaflet, which means it can be pitched and rotated, not just panned and zoomed. The bottom layer is a
           normal MapLibre raster source/layer. The top (scratchable) layer is a custom MapLibre
           <code>CustomLayerInterface</code> that renders raw WebGL: each visible tile gets its own offscreen 2D
@@ -96,39 +110,39 @@
           and then to a pixel position on the relevant tile's offscreen canvas, where a circle is drawn using the
           'destination-out' composite operation. This turns the affected area transparent; the texture is
           re-uploaded to the GPU, and the bottom layer shows through! Here's
-          <a href="http://chriswhong.com/local/building-urban-scratchoff/" class="text-sky-600">a blog post about
+          <a href="http://chriswhong.com/local/building-urban-scratchoff/" target="_blank" rel="noopener" class="text-sky-600">a blog post about
             how and why I built Urban Scratchoff.</a> (Note: that post describes the original Leaflet-based
           implementation.)
         </p>
 
         <h5 class="font-bold text-base">Imagery</h5>
         <p class="line-through text-gray-400">The historical imagery is provided by the New York Public Library
-          (NYPL Labs) <a href="http://maps.nypl.org/warper/" class="text-sky-600">Mapwarper</a> site - "Sectional
+          (NYPL Labs) <a href="http://maps.nypl.org/warper/" target="_blank" rel="noopener" class="text-sky-600">Mapwarper</a> site - "Sectional
           aerial maps of the City of New York / photographed and assembled under the direction of the chief
           engineer, July 1st, 1924." Mapwarper is a crowd-sourced imagery rectification tool. If you see imagery
           that doesn't "line up" while using Urban Scratchoff, you can actually help out and fix the rectification
           points on the NYPL This layer is cached on my server.</p>
         <p class="line-through text-gray-400">The modern day imagery is <a href="https://developer.mapquest.com/"
-            class="text-sky-600">Mapquest's OpenAerial</a> tileset</p>
+            target="_blank" rel="noopener" class="text-sky-600">Mapquest's OpenAerial</a> tileset</p>
         <p>The 1924 and 2018 aerial imagery is provided by the GIS Team at NYC's Office of Technology &amp;
-          Innovation. <a href="https://maps.nyc.gov/tiles/" class="text-sky-600">They publish these and other
+          Innovation. <a href="https://maps.nyc.gov/tiles/" target="_blank" rel="noopener" class="text-sky-600">They publish these and other
             historic NYC tilesets here.</a></p>
 
         <h5 class="font-bold text-base">Attribution & Thanks</h5>
         <ul class="list-disc pl-5 space-y-1">
-          <li><a href="https://twitter.com/riordan" class="text-sky-600">Dave Riordan</a> for answering an early
+          <li><a href="https://twitter.com/riordan" target="_blank" rel="noopener" class="text-sky-600">Dave Riordan</a> for answering an early
             tweet and pointing me to mapwarper</li>
-          <li><a href="https://twitter.com/recessionporn" class="text-sky-600">John Krauss</a> and <a
-              href="https://twitter.com/andrewxhill" class="text-sky-600">Andrew Hill</a> for looking over my
+          <li><a href="https://twitter.com/recessionporn" target="_blank" rel="noopener" class="text-sky-600">John Krauss</a> and <a
+              href="https://twitter.com/andrewxhill" target="_blank" rel="noopener" class="text-sky-600">Andrew Hill</a> for looking over my
             shoulder during development</li>
-          <li><a href="https://twitter.com/brymcbride" class="text-sky-600">Bryan McBride</a> for making <a
-              href="https://github.com/bmcbride/bootleaf" class="text-sky-600">bootleaf</a>, an awesome template
+          <li><a href="https://twitter.com/brymcbride" target="_blank" rel="noopener" class="text-sky-600">Bryan McBride</a> for making <a
+              href="https://github.com/bmcbride/bootleaf" target="_blank" rel="noopener" class="text-sky-600">bootleaf</a>, an awesome template
             layout for leaflet maps & bootstrap</li>
-          <li><a href="https://twitter.com/vtcraghead" class="text-sky-600">Bill Morris</a>, <a
-              href="https://twitter.com/pcrickard" class="text-sky-600">Paul Crickard</a> and <a
-              href="https://twitter.com/sr_spatial" class="text-sky-600">Steve Romalewski</a> for testing out the
+          <li><a href="https://twitter.com/vtcraghead" target="_blank" rel="noopener" class="text-sky-600">Bill Morris</a>, <a
+              href="https://twitter.com/pcrickard" target="_blank" rel="noopener" class="text-sky-600">Paul Crickard</a> and <a
+              href="https://twitter.com/sr_spatial" target="_blank" rel="noopener" class="text-sky-600">Steve Romalewski</a> for testing out the
             first prototype and giving feedback</li>
-          <li><a href="https://twitter.com/atogle" class="text-sky-600">Aaron Ogle</a> for guidance on combining
+          <li><a href="https://twitter.com/atogle" target="_blank" rel="noopener" class="text-sky-600">Aaron Ogle</a> for guidance on combining
             tiles and HTML canvas</li>
         </ul>
 
@@ -136,7 +150,7 @@
         <p>I would like to make it so that anyone can submit points of interest. Everyone will be greeted with a
           marked up map full of interesting scratchoffs to explore.</p>
 
-        <p class="font-bold"><a href="https://github.com/chriswhong/urbanscratchoff" class="text-sky-600">The code
+        <p class="font-bold"><a href="https://github.com/chriswhong/urbanscratchoff" target="_blank" rel="noopener" class="text-sky-600">The code
             is on github</a>. If you find a bug, please open an issue. If you want to contribute or fork for your
           city, have at it!</p>
       </div>

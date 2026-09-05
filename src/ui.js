@@ -6,7 +6,6 @@ export function setupUI({ onSwap }) {
   const swapBtn = document.getElementById("swap");
   const aboutBtn = document.getElementById("about-btn");
   const aboutModal = document.getElementById("aboutModal");
-  const introCta = document.getElementById("intro-cta");
   const modKey = document.getElementById("mod-key");
   const topLayerRow = document.getElementById("topLayerRow");
   const bottomLayerRow = document.getElementById("bottomLayerRow");
@@ -79,11 +78,6 @@ export function setupUI({ onSwap }) {
     setLayerNames: function (bottomName, topName) {
       document.getElementById("bottomLayerButton").textContent = bottomName;
       document.getElementById("topLayerButton").textContent = topName;
-    },
-    // Once the user has scratched something, the "click and drag to
-    // scratch" pitch has served its purpose -- get it out of the way.
-    collapseIntro: function () {
-      introCta.classList.add("hidden");
     },
   };
 }

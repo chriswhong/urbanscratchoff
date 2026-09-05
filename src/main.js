@@ -1,5 +1,8 @@
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import "@fortawesome/fontawesome-free/css/fontawesome.css";
+import "@fortawesome/fontawesome-free/css/brands.css";
+import "@fortawesome/fontawesome-free/css/solid.css";
 import "./styles.css";
 
 import { DEFAULT_TILE_LAYERS } from "./constants.js";
@@ -27,6 +30,7 @@ const map = new maplibregl.Map({
 });
 
 map.addControl(new maplibregl.NavigationControl(), "top-right");
+map.addControl(new maplibregl.ScaleControl(), "bottom-left");
 
 map.on("load", function () {
   const ui = setupUI({
@@ -39,15 +43,8 @@ map.on("load", function () {
     onLayersChanged: ui.setLayerNames,
   });
 
-  let introCollapsed = false;
   setupInteraction(map, {
-    onScratch: function (lngLat) {
-      if (!introCollapsed) {
-        introCollapsed = true;
-        ui.collapseIntro();
-      }
-      mapLayers.scratchAt(lngLat);
-    },
+    onScratch: mapLayers.scratchAt,
     onGestureEnd: mapLayers.endGesture,
   });
 
