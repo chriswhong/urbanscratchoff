@@ -41,10 +41,6 @@ body {
   transition: all 0.25s ease-out;
 }
 
-.leaflet-control-geosearch {
-  display: none;
-}
-
 #twitter-widget-0 {
   margin-top: 15px;
   margin-right: 15px;

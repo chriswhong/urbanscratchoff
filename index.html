@@ -4,10 +4,9 @@
 <head>
   <meta charset="UTF-8">
   <title>Urban Scratchoff</title>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.css" />
   <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css">
   <link rel="stylesheet" href="css/styles.css">
-
 </head>
 
 <body>
@@ -116,13 +115,19 @@
                 addictive (especially waterfronts/docks, large construction projects, highways, etc.) </p>
 
               <h5>Tech</h5>
-              <p>The map is loading two layers. The bottom layer is a normal leaflet.js TileLayer. The top layer makes
-                use of leaflet's Canvas TileLayer, essentially setting up a grid of 256x256 HTML canvases. For each
-                canvas, a tile image is requested from the top layer, and is drawn into the canvas. When the user
-                "Scratches" the canvas, they are drawing into the canvas using the 'destination-out' composite
-                operation. This turns the affected area transparent, allowing the bottom layer to show through! Here's
+              <p>The map runs on <a href="https://maplibre.org/">MapLibre GL JS</a> instead of Leaflet, which means it
+                can be pitched and rotated, not just panned and zoomed. The bottom layer is a normal MapLibre raster
+                source/layer. The top (scratchable) layer is a custom MapLibre <code>CustomLayerInterface</code> that
+                renders raw WebGL: each visible tile gets its own offscreen 2D canvas holding the tile image, and that
+                canvas is uploaded as a GL texture and drawn as a textured quad positioned in Mercator coordinates
+                using the same projection matrix MapLibre uses for the rest of the map &mdash; so the overlay stays
+                correctly warped under pitch and rotation instead of breaking like a flat DOM layer would. When the
+                user "Scratches" the map, the mouse position is converted to Mercator coordinates and then to a pixel
+                position on the relevant tile's offscreen canvas, where a circle is drawn using the 'destination-out'
+                composite operation. This turns the affected area transparent; the texture is re-uploaded to the GPU,
+                and the bottom layer shows through! Here's
                 <a href="http://chriswhong.com/local/building-urban-scratchoff/">a blog post about how and why I built
-                  Urban Scratchoff.</a>
+                  Urban Scratchoff.</a> (Note: that post describes the original Leaflet-based implementation.)
               </p>
 
 
@@ -192,11 +197,10 @@
     ga('send', 'pageview');
 
   </script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
   <script src="https://code.jquery.com/jquery-2.1.4.js"></script>
   <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
   <script type="js/routers/router.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/mustache.js/2.2.0/mustache.js"></script>
   <script src="js/script.js"></script>
 
 </body>
