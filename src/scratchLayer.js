@@ -36,14 +36,26 @@ ScratchLayer.prototype.onAdd = function (map, gl) {
 
   var vertexSrc = [
     "attribute vec2 a_pos;",
+    // u_matrix here is *not* MapLibre's raw whole-mercator-world matrix --
+    // it's that matrix pre-combined, in JS double precision, with this
+    // specific tile's translate+scale (see combineTileMatrix()). Letting
+    // the GPU's float32 vertex shader multiply a huge matrix scale
+    // (needed to map the whole [0,1] mercator range at deep zoom) by a
+    // tiny per-tile coordinate loses enough precision to visibly jitter,
+    // worse the deeper you zoom in; doing that multiplication in JS
+    // first keeps what the GPU actually sees well-conditioned.
     "uniform mat4 u_matrix;",
-    "uniform vec2 u_tileOrigin;",
-    "uniform float u_tileScale;",
     "varying vec2 v_texcoord;",
     "void main() {",
-    "  vec2 mercPos = u_tileOrigin + a_pos * u_tileScale;",
-    "  gl_Position = u_matrix * vec4(mercPos, 0.0, 1.0);",
-    "  v_texcoord = vec2(a_pos.x, a_pos.y);",
+    // Each tile is its own draw call, so its edge is computed
+    // independently from its neighbor's -- close but not always
+    // bit-identical, which can expose a hairline seam. Overscanning
+    // very slightly makes tiles overlap a hair instead; CLAMP_TO_EDGE
+    // just repeats the edge texel for the extra sliver, so it's
+    // invisible.
+    "  vec2 p = a_pos * 1.005 - 0.0025;",
+    "  gl_Position = u_matrix * vec4(p, 0.0, 1.0);",
+    "  v_texcoord = p;",
     "}",
   ].join("\n");
 
@@ -59,8 +71,6 @@ ScratchLayer.prototype.onAdd = function (map, gl) {
   this.program = createProgram(gl, vertexSrc, fragmentSrc);
   this.aPos = gl.getAttribLocation(this.program, "a_pos");
   this.uMatrix = gl.getUniformLocation(this.program, "u_matrix");
-  this.uTileOrigin = gl.getUniformLocation(this.program, "u_tileOrigin");
-  this.uTileScale = gl.getUniformLocation(this.program, "u_tileScale");
   this.uSampler = gl.getUniformLocation(this.program, "u_sampler");
 
   this.quadBuffer = gl.createBuffer();
@@ -278,12 +288,12 @@ ScratchLayer.prototype.render = function (gl, renderInput) {
 
       if (tile.dirty) {
         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, tile.canvas);
+        gl.generateMipmap(gl.TEXTURE_2D);
         tile.dirty = false;
       }
 
-      gl.uniformMatrix4fv(this.uMatrix, false, matrix);
-      gl.uniform2f(this.uTileOrigin, x / n, y / n);
-      gl.uniform1f(this.uTileScale, 1 / n);
+      var tileMatrix = combineTileMatrix(matrix, x / n, y / n, 1 / n);
+      gl.uniformMatrix4fv(this.uMatrix, false, tileMatrix);
       gl.uniform1i(this.uSampler, 0);
 
       gl.drawArrays(gl.TRIANGLES, 0, 6);
@@ -292,6 +302,31 @@ ScratchLayer.prototype.render = function (gl, renderInput) {
 };
 
 // ---- module-private helpers --------------------------------------------
+
+// Combines MapLibre's whole-mercator-world matrix with one tile's own
+// translate (ox, oy) + uniform scale, in JS double precision, equivalent
+// to `matrix * translate(ox, oy, 0) * scale(scale, scale, 1)`. Doing this
+// multiplication here rather than in the vertex shader matters: at deep
+// zoom, matrix's scale coefficients are huge (mapping the entire [0,1]
+// mercator range), and multiplying that by a tiny per-tile coordinate in
+// the GPU's float32 arithmetic loses enough precision to visibly jitter
+// tiles as the camera's continuous zoom scale changes -- worse the
+// further in you zoom. Pre-combining in double precision keeps the
+// values the GPU actually multiplies (the combined matrix's own entries)
+// well-conditioned, the same way MapLibre's own per-tile matrices avoid
+// this for its native tile rendering.
+function combineTileMatrix(matrix, ox, oy, scale) {
+  var a = matrix;
+  return new Float32Array([
+    scale * a[0], scale * a[1], scale * a[2], scale * a[3],
+    scale * a[4], scale * a[5], scale * a[6], scale * a[7],
+    a[8], a[9], a[10], a[11],
+    ox * a[0] + oy * a[4] + a[12],
+    ox * a[1] + oy * a[5] + a[13],
+    ox * a[2] + oy * a[6] + a[14],
+    ox * a[3] + oy * a[7] + a[15],
+  ]);
+}
 
 function tileUrl(template, z, x, y) {
   return template.replace("{z}", z).replace("{x}", x).replace("{y}", y);
@@ -314,7 +349,12 @@ function createTileTexture(gl) {
   gl.bindTexture(gl.TEXTURE_2D, texture);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  // Mipmapped trilinear filtering -- plain LINEAR minification with no
+  // mipmaps shimmers/jitters on the high-frequency detail in aerial
+  // photos as the map continuously zooms (each frame samples the full-res
+  // texture at a slightly different scale, aliasing differently every
+  // time). TILE_SIZE is a power of two so WebGL1 can mipmap it.
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
   return texture;
 }
