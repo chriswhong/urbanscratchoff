@@ -8,22 +8,11 @@ body {
   padding: 0;
 }
 
+/* Plain (unlayered) rule so it beats maplibre-gl.css's own unlayered
+   `.maplibregl-map { position: relative }` -- Tailwind's utilities live in
+   a cascade layer, which always loses to unlayered CSS regardless of
+   specificity or source order. */
 #map {
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.55);
-}
-
-.navbar-gradient {
-  background-image: linear-gradient(to bottom, #2b6988 0%, #1f4b61 100%);
-}
-
-#sidebar {
-  transition: all 0.25s ease-out;
-}
-
-.btn-mode {
-  @apply px-3 py-1.5 text-sm bg-white text-gray-700 hover:bg-gray-100;
-}
-
-.btn-mode.active {
-  @apply bg-sky-600 text-white hover:bg-sky-600;
+  position: fixed;
+  inset: 0;
 }

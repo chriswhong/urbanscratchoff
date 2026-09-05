@@ -3,67 +3,72 @@
 
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
   <title>Urban Scratchoff</title>
 </head>
 
 <body class="h-full w-full overflow-hidden p-0 m-0">
-  <nav class="navbar-gradient fixed top-0 inset-x-0 z-50 h-[50px] flex items-center justify-between px-4 text-white">
-    <a href="#" class="font-bold text-2xl text-white no-underline">Urban Scratchoff</a>
-    <ul class="flex items-center gap-4 list-none m-0 p-0 text-sm">
-      <li><a href="#" id="about-btn" class="text-white no-underline hover:underline">About</a></li>
-      <li><a href="https://github.com/chriswhong/urbanscratchoff" class="text-white no-underline hover:underline">Github</a></li>
-      <li><a href="http://chriswhong.com/local/building-urban-scratchoff/" class="text-white no-underline hover:underline">Blog Post</a></li>
-      <li>
-        <a href="https://twitter.com/share" class="twitter-share-button" {count} data-url="http://urbanscratchoff.com"
-          data-text="Urban Scratchoff - Scratch away historical imagery of NYC" data-via="chris_whong">Tweet</a>
-        <script>!function (d, s, id) { var js, fjs = d.getElementsByTagName(s)[0], p = /^http:/.test(d.location) ? 'http' : 'https'; if (!d.getElementById(id)) { js = d.createElement(s); js.id = id; js.src = p + '://platform.twitter.com/widgets.js'; fjs.parentNode.insertBefore(js, fjs); } }(document, 'script', 'twitter-wjs');</script>
-      </li>
-    </ul>
-  </nav>
+  <div id="map" class="fixed inset-0"></div>
 
-  <div class="flex h-full w-full pt-[50px]">
-    <div id="map" class="relative flex-1 order-2"></div>
+  <div id="panel"
+    class="fixed top-4 left-4 right-4 sm:right-auto sm:w-[320px] z-40 bg-white/95 backdrop-blur rounded-xl shadow-lg p-4">
+    <h1 class="text-lg font-bold text-gray-900 m-0">Urban Scratchoff</h1>
+    <p class="text-xs text-gray-500 mt-0.5 mb-0">by <a href="https://bsky.app/profile/chriswhong.bsky.social"
+        target="_blank" rel="noopener" class="font-medium text-sky-600 hover:underline">Chris Whong</a></p>
 
-    <div id="sidebar" class="order-1 w-[350px] max-w-full h-full shrink-0 bg-white relative overflow-y-auto">
-      <div class="p-4">
-        <h4 class="text-lg font-bold mb-2">Welcome!</h4>
-        <p class="text-sm text-gray-700 mb-4">Welcome to Urban Scratchoff! This site gives you a clever way to
-          explore historical aerial imagery of New York City. You can click and drag on the map to "scratch off" the
-          historical imagery and reveal the same location's present-day imagery. Hit the swap button below to
-          reverse the layers. Have fun!</p>
+    <p id="intro-cta" class="text-sm text-gray-600 mt-1.5 mb-0">
+      1924 aerial imagery of NYC is hiding the present day underneath. Click and drag on the map to scratch it away.
+    </p>
 
-        <h4 class="text-lg font-bold mb-2">Mode</h4>
-        <div class="inline-flex rounded overflow-hidden border border-gray-300 mb-4" role="group">
-          <button id="modePanAndZoom" type="button"
-            class="btn-mode border-r border-gray-300">Pan & Zoom Map</button>
-          <button id="modeScratchoff" type="button" class="btn-mode active">Scratch Off!</button>
-        </div>
+    <p class="hidden pointer-fine:block text-xs text-gray-400 mt-2 mb-0">Hold <kbd id="mod-key"
+        class="px-1 py-0.5 rounded border border-gray-300 bg-gray-50 font-sans">⌘</kbd> and drag to pan the map.</p>
+    <p class="hidden pointer-coarse:block text-xs text-gray-400 mt-2 mb-0">Use two fingers to pan the map.</p>
 
-        <h4 class="text-lg font-bold mb-2">Layer Order</h4>
-        <div class="flex items-center gap-4">
-          <button type="button" id="swap"
-            class="px-3 py-1.5 text-sm rounded bg-sky-600 text-white hover:bg-sky-700">Swap</button>
-          <div>
-            <div id="topLayerButton" class="layer-name"></div>
-            <div id="bottomLayerButton" class="layer-name"></div>
+    <div class="mt-3 pt-3 border-t border-gray-200">
+      <div class="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-2">Layer Order</div>
+      <div class="flex items-center gap-3">
+        <button type="button" id="swap" aria-label="Swap layer order" title="Swap layer order"
+          class="shrink-0 w-9 h-9 rounded-full bg-sky-600 text-white hover:bg-sky-700 cursor-pointer flex items-center justify-center text-lg leading-none">⇅</button>
+        <div id="layerRows" class="flex-1 min-w-0 text-sm">
+          <div id="topLayerRow" class="flex items-center gap-2 py-1">
+            <svg class="shrink-0 w-4 h-4 text-gray-500" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <rect x="2.5" y="3.5" width="15" height="13" rx="1.5" />
+              <circle cx="7" cy="8" r="1.5" />
+              <path d="M2.5 13.5l4-4 3 3 3.5-3.5 4.5 4.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span id="topLayerButton" class="font-semibold text-gray-900 truncate"></span>
+          </div>
+          <div class="border-t border-gray-200"></div>
+          <div id="bottomLayerRow" class="flex items-center gap-2 py-1">
+            <svg class="shrink-0 w-4 h-4 text-gray-300" viewBox="0 0 20 20" fill="none" stroke="currentColor"
+              stroke-width="1.5">
+              <rect x="2.5" y="3.5" width="15" height="13" rx="1.5" />
+              <circle cx="7" cy="8" r="1.5" />
+              <path d="M2.5 13.5l4-4 3 3 3.5-3.5 4.5 4.5" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+            <span id="bottomLayerButton" class="text-gray-400 truncate"></span>
           </div>
         </div>
       </div>
+    </div>
 
-      <div id="sidebar-footer" class="absolute bottom-0 left-0 p-4 text-sm text-gray-500">
-        <p>A map hack by <a href="https://twitter.com/chris_whong" class="text-sky-600">@chris_whong</a></p>
-      </div>
+    <div class="flex flex-wrap items-center gap-x-3 gap-y-1 mt-3 pt-3 border-t border-gray-200 text-sm font-medium text-sky-700">
+      <a href="#" id="about-btn">About</a>
+      <a href="https://github.com/chriswhong/urbanscratchoff" target="_blank" rel="noopener">Github</a>
+      <a href="http://chriswhong.com/local/building-urban-scratchoff/" target="_blank" rel="noopener">Blog Post</a>
+      <a href="https://bsky.app/profile/chriswhong.bsky.social" target="_blank" rel="noopener">Bluesky</a>
     </div>
   </div>
 
-  <div id="aboutModal"
-    class="hidden fixed inset-0 z-[1000] items-center justify-center bg-black/50 p-4">
+  <div id="aboutModal" class="hidden fixed inset-0 z-[1000] items-center justify-center bg-black/50 p-4">
     <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden">
       <div class="flex items-start justify-between gap-4 p-4 border-b border-gray-200">
         <div>
           <h3 class="text-xl font-bold m-0">About Urban Scratchoff</h3>
-          <p class="text-sm text-gray-500 m-0">A map hack by <a href="https://twitter.com/chris_whong"
-              class="text-sky-600">@chris_whong</a></p>
+          <p class="text-sm text-gray-500 m-0">A map hack by <a
+              href="https://bsky.app/profile/chriswhong.bsky.social" class="text-sky-600">@chriswhong.bsky.social</a>
+          </p>
         </div>
         <button type="button" class="about-modal-close text-2xl leading-none text-gray-400 hover:text-gray-700"
           aria-label="Close">&times;</button>
@@ -137,7 +142,8 @@
       </div>
 
       <div class="flex justify-end p-4 border-t border-gray-200">
-        <button type="button" class="about-modal-close px-3 py-1.5 text-sm rounded bg-gray-100 hover:bg-gray-200">Close</button>
+        <button type="button"
+          class="about-modal-close px-3 py-1.5 text-sm rounded bg-gray-100 hover:bg-gray-200">Close</button>
       </div>
     </div>
   </div>

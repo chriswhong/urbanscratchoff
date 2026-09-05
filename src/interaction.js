@@ -3,24 +3,26 @@ import { STAMP_SPACING } from "./constants.js";
 // ---- interaction ------------------------------------------------------
 //
 // dragPan is the only interaction that's ever gated: it shares the same
-// plain left-button/single-finger drag gesture as scratching, so only one
-// of them can own it at a time. It's on permanently in "Pan & Zoom Map"
-// mode, and otherwise only while the pan modifier key is held (which
-// pre-enables it on keydown -- so it's already active *before* the next
-// mousedown, avoiding a race with MapLibre's own internal drag handler).
+// plain single-button/single-finger drag gesture as scratching, so only
+// one of them can own it at a time. On desktop it's off unless the pan
+// modifier key is held (pre-enabled on keydown -- so it's already active
+// *before* the next mousedown, avoiding a race with MapLibre's own
+// internal drag handler). On touch, a single finger scratches and a
+// second finger switches the whole gesture to panning (see touchCount
+// below) -- there's no keyboard modifier to reach for on a phone.
 //
-// Hold Cmd/Win (the "Meta" key) while dragging in Scratch Off mode to pan
-// the map instead of scratching -- Ctrl+drag and right-drag are left to
-// MapLibre's own always-on dragRotate handler for pitch/rotate (see
-// isNavigationGesture below).
+// Hold Cmd/Win (the "Meta" key) while dragging to pan the map instead of
+// scratching -- Ctrl+drag and right-drag are left to MapLibre's own
+// always-on dragRotate handler for pitch/rotate (see isNavigationGesture
+// below).
 export function setupInteraction(map, { onScratch, onGestureEnd }) {
-  let scratchoffMode = true;
   let panModifierHeld = false;
+  let touchPanning = false;
   let isDrawing = false;
   let lastPoint = null;
 
   function updateDragPan() {
-    if (!scratchoffMode || panModifierHeld) {
+    if (panModifierHeld || touchPanning) {
       map.dragPan.enable();
     } else {
       map.dragPan.disable();
@@ -28,15 +30,13 @@ export function setupInteraction(map, { onScratch, onGestureEnd }) {
   }
 
   function updateCursor() {
-    const panning = !scratchoffMode || panModifierHeld;
+    const panning = panModifierHeld || touchPanning;
     map.getCanvas().style.cursor = panning ? "grab" : "crosshair";
   }
 
-  function setMode(scratching) {
-    scratchoffMode = scratching;
-    updateDragPan();
-    updateCursor();
-  }
+  // dragPan starts disabled -- see updateDragPan above.
+  map.dragPan.disable();
+  updateCursor();
 
   function onPanModifierDown(e) {
     if (e.key !== "Meta" || panModifierHeld) return;
@@ -87,15 +87,32 @@ export function setupInteraction(map, { onScratch, onGestureEnd }) {
     return !!(oe.metaKey || oe.ctrlKey || oe.shiftKey || oe.button === 2);
   }
 
+  // Number of simultaneous touches for a MapLibre touch event (e) or a
+  // raw window-level TouchEvent (window's touchend fallback below).
+  function touchCount(e) {
+    const oe = e && e.originalEvent ? e.originalEvent : e;
+    return oe && oe.touches ? oe.touches.length : 0;
+  }
+
   function onScratchStart(e) {
-    if (!scratchoffMode || isNavigationGesture(e)) return;
+    if (touchCount(e) >= 2) {
+      // A second finger landed -- hand the whole gesture to dragPan
+      // instead, even if a first-finger scratch was already in progress.
+      touchPanning = true;
+      isDrawing = false;
+      lastPoint = null;
+      updateDragPan();
+      updateCursor();
+      return;
+    }
+    if (isNavigationGesture(e)) return;
     isDrawing = true;
     lastPoint = e.point;
     onScratch(e.lngLat);
   }
 
   function onScratchMove(e) {
-    if (!scratchoffMode || !isDrawing) return;
+    if (touchPanning || !isDrawing) return;
     if (lastPoint) {
       stampAlong(lastPoint, e.point);
     } else {
@@ -104,7 +121,12 @@ export function setupInteraction(map, { onScratch, onGestureEnd }) {
     lastPoint = e.point;
   }
 
-  function onScratchEnd() {
+  function onScratchEnd(e) {
+    if (touchPanning && touchCount(e) === 0) {
+      touchPanning = false;
+      updateDragPan();
+      updateCursor();
+    }
     isDrawing = false;
     lastPoint = null;
     if (onGestureEnd) onGestureEnd();
@@ -118,6 +140,4 @@ export function setupInteraction(map, { onScratch, onGestureEnd }) {
   map.on("touchend", onScratchEnd);
   window.addEventListener("mouseup", onScratchEnd);
   window.addEventListener("touchend", onScratchEnd);
-
-  return { setMode };
 }

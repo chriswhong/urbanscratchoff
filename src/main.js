@@ -26,13 +26,10 @@ const map = new maplibregl.Map({
   renderWorldCopies: false,
 });
 
-map.addControl(new maplibregl.NavigationControl());
+map.addControl(new maplibregl.NavigationControl(), "top-right");
 
 map.on("load", function () {
   const ui = setupUI({
-    onModeChange: function (scratching) {
-      interaction.setMode(scratching);
-    },
     onSwap: function () {
       mapLayers.swap();
     },
@@ -42,16 +39,22 @@ map.on("load", function () {
     onLayersChanged: ui.setLayerNames,
   });
 
-  const interaction = setupInteraction(map, {
-    onScratch: mapLayers.scratchAt,
+  let introCollapsed = false;
+  setupInteraction(map, {
+    onScratch: function (lngLat) {
+      if (!introCollapsed) {
+        introCollapsed = true;
+        ui.collapseIntro();
+      }
+      mapLayers.scratchAt(lngLat);
+    },
     onGestureEnd: mapLayers.endGesture,
   });
 
-  // Zoom, rotate, and pitch all use gestures (scroll wheel, two-finger
-  // touch, right-button/Ctrl+drag, Shift+drag) that never collide with a
-  // plain single-button/single-finger scratch drag, so they stay on
-  // unconditionally in both UI modes. Only dragPan needs to be gated --
-  // see interaction.js.
+  // Zoom, rotate, and pitch all use gestures (scroll wheel, pinch,
+  // right-button/Ctrl+drag, Shift+drag) that never collide with a plain
+  // single-button/single-finger scratch drag, so they stay on
+  // unconditionally. Only dragPan needs to be gated -- see interaction.js.
   map.scrollZoom.enable();
   map.doubleClickZoom.enable();
   map.touchZoomRotate.enable();
@@ -59,6 +62,4 @@ map.on("load", function () {
   map.dragRotate.enable();
   map.keyboard.enable();
   map.boxZoom.enable();
-
-  interaction.setMode(true);
 });

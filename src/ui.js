@@ -1,32 +1,49 @@
 // ---- UI wiring ----------------------------------------------------
 //
 // Pure DOM glue: no map or scratch logic lives here, just wiring the
-// sidebar/navbar controls to the callbacks the caller supplies.
-export function setupUI({ onModeChange, onSwap }) {
-  const panBtn = document.getElementById("modePanAndZoom");
-  const scratchBtn = document.getElementById("modeScratchoff");
+// floating panel/modal controls to the callbacks the caller supplies.
+export function setupUI({ onSwap }) {
   const swapBtn = document.getElementById("swap");
   const aboutBtn = document.getElementById("about-btn");
   const aboutModal = document.getElementById("aboutModal");
+  const introCta = document.getElementById("intro-cta");
+  const modKey = document.getElementById("mod-key");
+  const topLayerRow = document.getElementById("topLayerRow");
+  const bottomLayerRow = document.getElementById("bottomLayerRow");
 
-  function setActiveModeButton(btn) {
-    document.querySelectorAll(".btn-mode").forEach((el) => el.classList.remove("active"));
-    btn.classList.add("active");
+  const isMac = /mac|iphone|ipad|ipod/i.test(
+    navigator.userAgentData?.platform ?? navigator.platform ?? navigator.userAgent,
+  );
+  modKey.textContent = isMac ? "⌘" : "Ctrl";
+
+  const SWAP_ANIMATION_MS = 220;
+
+  // Slide the two layer rows past each other, then swap their text (via
+  // onSwap, which updates the DOM synchronously) right as they land back
+  // in place -- reads as the two layers trading positions.
+  function animateSwap() {
+    const distance = bottomLayerRow.offsetTop - topLayerRow.offsetTop;
+
+    topLayerRow.style.transition = bottomLayerRow.style.transition =
+      `transform ${SWAP_ANIMATION_MS}ms ease, opacity ${SWAP_ANIMATION_MS}ms ease`;
+    topLayerRow.style.transform = `translateY(${distance}px)`;
+    bottomLayerRow.style.transform = `translateY(${-distance}px)`;
+    topLayerRow.style.opacity = bottomLayerRow.style.opacity = "0.4";
+
+    window.setTimeout(function () {
+      onSwap();
+
+      topLayerRow.style.transition = bottomLayerRow.style.transition = "none";
+      topLayerRow.style.transform = bottomLayerRow.style.transform = "";
+      topLayerRow.style.opacity = bottomLayerRow.style.opacity = "";
+      // Force a reflow so the transition removal above takes effect
+      // before it's re-enabled for the next swap.
+      void topLayerRow.offsetHeight;
+      topLayerRow.style.transition = bottomLayerRow.style.transition = "";
+    }, SWAP_ANIMATION_MS);
   }
 
-  panBtn.addEventListener("click", function () {
-    setActiveModeButton(panBtn);
-    onModeChange(false);
-  });
-
-  scratchBtn.addEventListener("click", function () {
-    setActiveModeButton(scratchBtn);
-    onModeChange(true);
-  });
-
-  swapBtn.addEventListener("click", function () {
-    onSwap();
-  });
+  swapBtn.addEventListener("click", animateSwap);
 
   function showAboutModal() {
     aboutModal.classList.remove("hidden");
@@ -62,6 +79,11 @@ export function setupUI({ onModeChange, onSwap }) {
     setLayerNames: function (bottomName, topName) {
       document.getElementById("bottomLayerButton").textContent = bottomName;
       document.getElementById("topLayerButton").textContent = topName;
+    },
+    // Once the user has scratched something, the "click and drag to
+    // scratch" pitch has served its purpose -- get it out of the way.
+    collapseIntro: function () {
+      introCta.classList.add("hidden");
     },
   };
 }

@@ -8,7 +8,7 @@ export const STAMP_SPACING = BRUSH_RADIUS / 3;
 
 export const DEFAULT_TILE_LAYERS = [
   {
-    name: "Present Day Aerials",
+    name: "2018 Aerials",
     url: "https://maps.nyc.gov/xyz/1.0.0/photo/2018/{z}/{x}/{y}.png8",
   },
   {
