@@ -2,9 +2,9 @@ $(document).ready(function () {
   // ---- config -------------------------------------------------------
 
   var TILE_SIZE = 256;
-  var BRUSH_RADIUS = 30;
-  var BORDER_WIDTH = 8; // extra radius, beyond the erase hole, painted white
-  var BORDER_RADIUS = BRUSH_RADIUS + BORDER_WIDTH;
+  var BRUSH_RADIUS = 30; // scales with zoom -- see applyStampToTile()
+  var BORDER_LINE_WIDTH = 8; // constant screen pixels -- see the border-layer section below
+  var UNION_FLUSH_DELAY = 200; // ms, throttles how often the border polygon is recomputed
   var MAX_TILE_SPAN = 20; // per-axis cap on tiles considered, guards against huge pitched viewports
   var MAX_CACHED_TILES = 400; // simple memory cap for the scratch tile cache
 
@@ -25,6 +25,17 @@ $(document).ready(function () {
   var baseSourceId = "base-tiles";
   var baseLayerId = "base-layer";
   var scratchLayer = null;
+
+  // ---- border layer state ---------------------------------------------
+  //
+  // The white "torn edge" border is a real vector line layer tracing the
+  // union of every scratch ever made, rather than something baked into the
+  // raster tiles -- see the big comment above ensureBorderLayer() for why.
+  var borderSourceId = "scratch-border";
+  var borderLayerId = "scratch-border-line";
+  var borderUnion = null; // accumulated Turf Feature<Polygon|MultiPolygon>, or null
+  var pendingCircles = [];
+  var unionFlushTimer = null;
 
   // ---- map setup ------------------------------------------------------
 
@@ -95,19 +106,26 @@ $(document).ready(function () {
 
     scratchLayer = new ScratchLayer("scratch-layer", topLayer.url);
     map.addLayer(scratchLayer);
+
+    // Swapping recreates the scratch layer from scratch, so the border
+    // (which traces its erased area) has to reset along with it.
+    resetBorder();
+    ensureBorderLayer();
   }
 
   // ---- Custom WebGL "canvas layer" ------------------------------------
   //
-  // Each visible tile gets two offscreen 2D <canvas> elements: one holding
-  // the tile's image (drawn once, read-only after that), and one "mask"
-  // canvas that scratching stamps into -- see the comment on stampMask()
-  // for why the mask uses two separate additive channels (border + erase)
-  // rather than drawing directly into the image. Both canvases are
-  // uploaded as GL textures and drawn as a textured quad positioned with
+  // Each visible tile gets an offscreen 2D <canvas> holding that tile's
+  // image, into which scratching draws destination-out circles directly
+  // (erasing an already-transparent area is always a clean no-op, so this
+  // unions correctly regardless of path shape or draw order). The canvas is
+  // uploaded as a GL texture and drawn as a textured quad positioned with
   // Mercator coordinates through the projection matrix MapLibre hands us
   // in render() -- the same matrix it uses to draw every other layer -- so
   // the overlay stays correctly warped under pitch and rotation.
+  //
+  // The white border is handled entirely separately, as a real vector line
+  // layer -- see the border-layer section below for why.
 
   function ScratchLayer(id, tileUrlTemplate) {
     this.id = id;
@@ -116,6 +134,12 @@ $(document).ready(function () {
     this.tileUrlTemplate = tileUrlTemplate;
     this.tiles = new Map();
     this.tileZ = null;
+    // Every scratch ever made, as a Mercator point plus the tile zoom it
+    // was made at (used to scale its erase radius geospatially) -- see
+    // rebuildTile() for why this persistent, zoom-independent record is
+    // what makes scratches survive crossing a zoom threshold instead of
+    // vanishing into a fresh, unscratched tile grid.
+    this.stamps = [];
   }
 
   ScratchLayer.prototype.onAdd = function (map, gl) {
@@ -135,26 +159,12 @@ $(document).ready(function () {
       "}",
     ].join("\n");
 
-    // u_maskSampler encodes two independent, purely-additive coverage masks
-    // in one texture: red = "within the border band", green = "erased".
-    // Erase always wins over border, border always wins over the original
-    // image -- see the big comment on stampMask() for why this composite
-    // approach (rather than drawing an opaque stroke into the image itself)
-    // is what makes the border trace the true union of the whole scratched
-    // area, correctly, regardless of path shape or draw order.
     var fragmentSrc = [
       "precision mediump float;",
-      "uniform sampler2D u_imageSampler;",
-      "uniform sampler2D u_maskSampler;",
+      "uniform sampler2D u_sampler;",
       "varying vec2 v_texcoord;",
       "void main() {",
-      "  vec4 img = texture2D(u_imageSampler, v_texcoord);",
-      "  vec4 mask = texture2D(u_maskSampler, v_texcoord);",
-      "  float bordered = mask.r;",
-      "  float erased = mask.g;",
-      "  vec3 rgb = mix(img.rgb, vec3(1.0), bordered);",
-      "  float alpha = 1.0 - erased;",
-      "  gl_FragColor = vec4(rgb * alpha, alpha);",
+      "  gl_FragColor = texture2D(u_sampler, v_texcoord);",
       "}",
     ].join("\n");
 
@@ -163,8 +173,7 @@ $(document).ready(function () {
     this.uMatrix = gl.getUniformLocation(this.program, "u_matrix");
     this.uTileOrigin = gl.getUniformLocation(this.program, "u_tileOrigin");
     this.uTileScale = gl.getUniformLocation(this.program, "u_tileScale");
-    this.uImageSampler = gl.getUniformLocation(this.program, "u_imageSampler");
-    this.uMaskSampler = gl.getUniformLocation(this.program, "u_maskSampler");
+    this.uSampler = gl.getUniformLocation(this.program, "u_sampler");
 
     this.quadBuffer = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
@@ -179,8 +188,7 @@ $(document).ready(function () {
     var gl = this.gl;
     if (!gl) return;
     this.tiles.forEach(function (tile) {
-      if (tile.imageTexture) gl.deleteTexture(tile.imageTexture);
-      if (tile.maskTexture) gl.deleteTexture(tile.maskTexture);
+      if (tile.texture) gl.deleteTexture(tile.texture);
     });
     this.tiles.clear();
     if (this.program) gl.deleteProgram(this.program);
@@ -199,26 +207,16 @@ $(document).ready(function () {
       return tile;
     }
 
-    var imageCanvas = document.createElement("canvas");
-    imageCanvas.width = TILE_SIZE;
-    imageCanvas.height = TILE_SIZE;
-
-    var maskCanvas = document.createElement("canvas");
-    maskCanvas.width = TILE_SIZE;
-    maskCanvas.height = TILE_SIZE;
+    var canvas = document.createElement("canvas");
+    canvas.width = TILE_SIZE;
+    canvas.height = TILE_SIZE;
 
     tile = {
-      imageCanvas: imageCanvas,
-      imageCtx: imageCanvas.getContext("2d"),
-      imageTexture: null,
+      canvas: canvas,
+      ctx: canvas.getContext("2d"),
+      texture: null,
       loaded: false,
-      // The image is drawn once on load and never touched again, so it
-      // only ever needs a single upload.
-      imageUploaded: false,
-      maskCanvas: maskCanvas,
-      maskCtx: maskCanvas.getContext("2d"),
-      maskTexture: null,
-      maskDirty: false,
+      dirty: false,
       lastUsed: performance.now(),
     };
     this.tiles.set(key, tile);
@@ -227,8 +225,16 @@ $(document).ready(function () {
     var img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = function () {
-      tile.imageCtx.drawImage(img, 0, 0, TILE_SIZE, TILE_SIZE);
+      tile.ctx.drawImage(img, 0, 0, TILE_SIZE, TILE_SIZE);
       tile.loaded = true;
+      // Replay scratch history now that there's an image to erase into --
+      // covers a fresh zoom level, a tile scrolled back into view, or one
+      // recreated after cache eviction, all of which would otherwise show
+      // up unscratched even though the ground they cover has been
+      // scratched. (Erasing before the image loads would just be wiped out
+      // by this drawImage call, so history replay has to happen after it.)
+      self.rebuildTile(tile, z, x, y);
+      tile.dirty = true;
       self.map.triggerRepaint();
     };
     img.src = tileUrl(this.tileUrlTemplate, z, x, y);
@@ -248,10 +254,47 @@ $(document).ready(function () {
     var toRemove = entries.slice(0, entries.length - MAX_CACHED_TILES);
     var self = this;
     toRemove.forEach(function (entry) {
-      if (entry[1].imageTexture) gl.deleteTexture(entry[1].imageTexture);
-      if (entry[1].maskTexture) gl.deleteTexture(entry[1].maskTexture);
+      if (entry[1].texture) gl.deleteTexture(entry[1].texture);
       self.tiles.delete(entry[0]);
     });
+  };
+
+  // Erases one recorded stamp into a specific tile's canvas. The radius
+  // scales with how many zoom levels apart the stamp's original zoom and
+  // this target tile's zoom are, so the same real-world ground area stays
+  // scratched -- geospatially persistent, exactly like scratching a
+  // physical object: zoom out one level and it covers twice the ground per
+  // pixel, so the same hole looks twice the pixel size. Returns true if the
+  // stamp was actually close enough to touch this tile.
+  ScratchLayer.prototype.applyStampToTile = function (tile, stamp, targetZ, tx, ty) {
+    var n = Math.pow(2, targetZ);
+    var eraseRadius = BRUSH_RADIUS * Math.pow(2, targetZ - stamp.tileZ);
+
+    var px = stamp.mercX * n * TILE_SIZE;
+    var py = stamp.mercY * n * TILE_SIZE;
+    var localX = px - tx * TILE_SIZE;
+    var localY = py - ty * TILE_SIZE;
+
+    if (
+      localX < -eraseRadius ||
+      localX > TILE_SIZE + eraseRadius ||
+      localY < -eraseRadius ||
+      localY > TILE_SIZE + eraseRadius
+    ) {
+      return false;
+    }
+
+    eraseCircle(tile.ctx, localX, localY, eraseRadius);
+    return true;
+  };
+
+  // Replays every stamp ever made onto a (re)created tile, so it shows the
+  // correct scratched state immediately -- see the comment where this is
+  // called from getOrCreateTile()'s image load handler.
+  ScratchLayer.prototype.rebuildTile = function (tile, z, x, y) {
+    for (var i = 0; i < this.stamps.length; i++) {
+      this.applyStampToTile(tile, this.stamps[i], z, x, y);
+    }
   };
 
   // Erase a brush-radius circle at the given lngLat, spilling into
@@ -260,8 +303,11 @@ $(document).ready(function () {
     var tileZ = this.tileZ;
     if (tileZ === null) return;
 
-    var n = Math.pow(2, tileZ);
     var merc = maplibregl.MercatorCoordinate.fromLngLat(lngLat);
+    var stamp = { mercX: merc.x, mercY: merc.y, tileZ: tileZ };
+    this.stamps.push(stamp);
+
+    var n = Math.pow(2, tileZ);
     var px = merc.x * n * TILE_SIZE;
     var py = merc.y * n * TILE_SIZE;
     var baseTileX = Math.floor(px / TILE_SIZE);
@@ -273,23 +319,12 @@ $(document).ready(function () {
       for (var tx = baseTileX - 1; tx <= baseTileX + 1; tx++) {
         if (tx < 0 || tx >= n) continue;
 
-        var localX = px - tx * TILE_SIZE;
-        var localY = py - ty * TILE_SIZE;
-        if (
-          localX < -BORDER_RADIUS ||
-          localX > TILE_SIZE + BORDER_RADIUS ||
-          localY < -BORDER_RADIUS ||
-          localY > TILE_SIZE + BORDER_RADIUS
-        ) {
-          continue;
-        }
-
         var tile = this.getOrCreateTile(tileZ, tx, ty);
         if (!tile.loaded) continue;
-
-        stampMask(tile.maskCtx, localX, localY);
-        tile.maskDirty = true;
-        touched = true;
+        if (this.applyStampToTile(tile, stamp, tileZ, tx, ty)) {
+          tile.dirty = true;
+          touched = true;
+        }
       }
     }
 
@@ -330,53 +365,134 @@ $(document).ready(function () {
         var tile = this.getOrCreateTile(tileZ, x, y);
         if (!tile.loaded) continue;
 
-        // Unit 0: the tile image, uploaded once and never touched again.
         gl.activeTexture(gl.TEXTURE0);
-        if (!tile.imageTexture) {
-          tile.imageTexture = createTileTexture(gl);
-        }
-        gl.bindTexture(gl.TEXTURE_2D, tile.imageTexture);
-        if (!tile.imageUploaded) {
-          gl.texImage2D(
-            gl.TEXTURE_2D,
-            0,
-            gl.RGBA,
-            gl.RGBA,
-            gl.UNSIGNED_BYTE,
-            tile.imageCanvas
-          );
-          tile.imageUploaded = true;
-        }
 
-        // Unit 1: the border/erase mask, re-uploaded whenever a scratch
-        // touches this tile.
-        gl.activeTexture(gl.TEXTURE1);
-        if (!tile.maskTexture) {
-          tile.maskTexture = createTileTexture(gl);
+        if (!tile.texture) {
+          tile.texture = createTileTexture(gl);
         }
-        gl.bindTexture(gl.TEXTURE_2D, tile.maskTexture);
-        if (tile.maskDirty) {
+        gl.bindTexture(gl.TEXTURE_2D, tile.texture);
+
+        if (tile.dirty) {
           gl.texImage2D(
             gl.TEXTURE_2D,
             0,
             gl.RGBA,
             gl.RGBA,
             gl.UNSIGNED_BYTE,
-            tile.maskCanvas
+            tile.canvas
           );
-          tile.maskDirty = false;
+          tile.dirty = false;
         }
 
         gl.uniformMatrix4fv(this.uMatrix, false, matrix);
         gl.uniform2f(this.uTileOrigin, x / n, y / n);
         gl.uniform1f(this.uTileScale, 1 / n);
-        gl.uniform1i(this.uImageSampler, 0);
-        gl.uniform1i(this.uMaskSampler, 1);
+        gl.uniform1i(this.uSampler, 0);
 
         gl.drawArrays(gl.TRIANGLES, 0, 6);
       }
     }
   };
+
+  // ---- border layer (vector line) ---------------------------------------
+  //
+  // The white "torn edge" border used to be baked into the raster tiles
+  // (an extra ring stamped around each erase circle). That worked, but its
+  // thickness was measured in tile-texel space, which only equals true
+  // screen pixels when the current zoom exactly matches the tile grid's own
+  // integer zoom -- in between, MapLibre continuously scales the whole tile
+  // texture up or down, so the border's apparent pixel width drifted
+  // continuously and then visibly snapped/reset the instant the tile grid
+  // switched to a new integer zoom.
+  //
+  // Real MapLibre vector layers don't have that problem: a `line-width` is
+  // rendered at that many screen pixels continuously across zoom, with no
+  // integer-snapping, because MapLibre's vector renderer is built to do
+  // exactly that. So the border is instead a genuine GeoJSON line layer
+  // tracing the true outer boundary of the union of every scratch ever
+  // made. Turf.js computes that union: each stamp becomes a circle polygon
+  // (sized in real-world meters, matching the raster erase hole's own
+  // geospatial scaling), folded into one running unioned polygon.
+  //
+  // Recomputing that union on every single stamp would be wasteful --
+  // dragging can generate dozens of interpolated stamps per second -- so
+  // new circles are queued and merged in a batch at most once every
+  // UNION_FLUSH_DELAY ms, with an immediate flush on gesture end so the
+  // border doesn't lag visibly after releasing.
+
+  function metersPerPixel(lat, zoom) {
+    return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
+  }
+
+  function queueBorderCircle(lngLat, tileZ) {
+    var radiusMeters = BRUSH_RADIUS * metersPerPixel(lngLat.lat, tileZ);
+    pendingCircles.push(
+      turf.circle([lngLat.lng, lngLat.lat], radiusMeters, {
+        steps: 24,
+        units: "meters",
+      })
+    );
+    if (!unionFlushTimer) {
+      unionFlushTimer = setTimeout(flushBorderUnion, UNION_FLUSH_DELAY);
+    }
+  }
+
+  function flushBorderUnion() {
+    unionFlushTimer = null;
+    if (pendingCircles.length === 0) return;
+
+    var newCircles = pendingCircles;
+    pendingCircles = [];
+    var allPolygons = borderUnion ? [borderUnion].concat(newCircles) : newCircles;
+    borderUnion =
+      allPolygons.length === 1
+        ? allPolygons[0]
+        : turf.union(turf.featureCollection(allPolygons));
+
+    var source = map.getSource(borderSourceId);
+    if (source) {
+      source.setData(
+        borderUnion ? turf.featureCollection([borderUnion]) : turf.featureCollection([])
+      );
+    }
+  }
+
+  // Cancels any pending circles and clears the rendered border -- called
+  // whenever the scratch layer itself resets (e.g. on swap), so the border
+  // never ends up tracing an area that's no longer actually scratched.
+  function resetBorder() {
+    borderUnion = null;
+    pendingCircles = [];
+    if (unionFlushTimer) {
+      clearTimeout(unionFlushTimer);
+      unionFlushTimer = null;
+    }
+    var source = map.getSource(borderSourceId);
+    if (source) source.setData(turf.featureCollection([]));
+  }
+
+  // Adds the border source/layer the first time, or just moves it back to
+  // the top of the stack on subsequent calls (addTileLayers just recreated
+  // the raster and scratch layers above it).
+  function ensureBorderLayer() {
+    if (!map.getSource(borderSourceId)) {
+      map.addSource(borderSourceId, {
+        type: "geojson",
+        data: turf.featureCollection([]),
+      });
+    }
+    if (!map.getLayer(borderLayerId)) {
+      map.addLayer({
+        id: borderLayerId,
+        type: "line",
+        source: borderSourceId,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: { "line-color": "#ffffff", "line-width": BORDER_LINE_WIDTH },
+      });
+    } else {
+      map.moveLayer(borderLayerId);
+    }
+  }
 
   // ---- shared helpers ---------------------------------------------------
 
@@ -472,38 +588,17 @@ $(document).ready(function () {
     return { xMin: xMin, xMax: xMax, yMin: yMin, yMax: yMax };
   }
 
-  // Stamps two independent, purely-additive coverage circles into a tile's
-  // mask canvas: a bigger "border" circle (red channel) and a smaller
-  // "erase" circle (green channel), using globalCompositeOperation =
-  // "lighter" (additive/clamped blending) so each channel only ever grows,
-  // regardless of draw order.
-  //
-  // This matters because a decorative stroke drawn with source-over
-  // unconditionally repaints opacity over whatever's beneath it -- if we'd
-  // drawn a white ring directly per-stamp, each one would re-opacify a
-  // sliver of area a *previous* stamp had already erased, and nothing
-  // later would ever erase it again since drags keep moving forward. That
-  // produced a persistent chain of ring fragments no matter how densely
-  // stamps were packed, and per-gesture start/end caps still left a stray
-  // ring whenever click-drag-release didn't return to the same spot.
-  //
-  // Keeping "border" and "erase" as separate monotonic accumulators (never
-  // overwritten, only added to) and combining them in the fragment shader
-  // (erase always wins over border, border always wins over the image)
-  // instead makes the border trace the true outer boundary of the whole
-  // union of everything ever scratched -- correct for any path shape,
-  // draw order, or number of separate gestures.
-  function stampMask(ctx, x, y) {
-    ctx.globalCompositeOperation = "lighter";
-
-    ctx.fillStyle = "rgba(255, 0, 0, 1)";
+  // Punches a transparent hole directly into a tile's image canvas.
+  // destination-out is idempotent -- erasing an already-transparent area is
+  // always a no-op -- so this unions correctly no matter the path shape,
+  // draw order, or number of separate gestures, with no extra bookkeeping
+  // needed (unlike drawing an opaque stroke, which would have to worry
+  // about repainting over previously-erased pixels).
+  function eraseCircle(ctx, x, y, radius) {
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.fillStyle = "rgba(0, 0, 0, 1)";
     ctx.beginPath();
-    ctx.arc(x, y, BORDER_RADIUS, 0, Math.PI * 2, false);
-    ctx.fill();
-
-    ctx.fillStyle = "rgba(0, 255, 0, 1)";
-    ctx.beginPath();
-    ctx.arc(x, y, BRUSH_RADIUS, 0, Math.PI * 2, false);
+    ctx.arc(x, y, radius, 0, Math.PI * 2, false);
     ctx.fill();
   }
 
@@ -564,6 +659,14 @@ $(document).ready(function () {
   var lastPoint = null;
   var STAMP_SPACING = BRUSH_RADIUS / 3;
 
+  // Erases into the raster tile and queues the matching border circle
+  // together, so the two stay in sync at every stamp.
+  function scratchAndBorder(lngLat) {
+    var tileZ = scratchLayer.tileZ;
+    scratchLayer.scratchAt(lngLat);
+    if (tileZ !== null) queueBorderCircle(lngLat, tileZ);
+  }
+
   // Stamp repeatedly along a screen-space segment so fast drags (or sparse
   // mousemove events) don't leave gaps -- purely cosmetic now (every stamp
   // unions correctly regardless of spacing), just keeps the swept shape
@@ -576,7 +679,7 @@ $(document).ready(function () {
     for (var i = 1; i <= steps; i++) {
       var t = i / steps;
       var pt = { x: fromPoint.x + dx * t, y: fromPoint.y + dy * t };
-      scratchLayer.scratchAt(map.unproject(pt));
+      scratchAndBorder(map.unproject(pt));
     }
   }
 
@@ -593,7 +696,7 @@ $(document).ready(function () {
     if (!scratchoffMode || isNavigationGesture(e)) return;
     isDrawing = true;
     lastPoint = e.point;
-    scratchLayer.scratchAt(e.lngLat);
+    scratchAndBorder(e.lngLat);
   }
 
   function onScratchMove(e) {
@@ -601,7 +704,7 @@ $(document).ready(function () {
     if (lastPoint) {
       stampAlong(lastPoint, e.point);
     } else {
-      scratchLayer.scratchAt(e.lngLat);
+      scratchAndBorder(e.lngLat);
     }
     lastPoint = e.point;
   }
@@ -609,6 +712,13 @@ $(document).ready(function () {
   function onScratchEnd() {
     isDrawing = false;
     lastPoint = null;
+    // Flush immediately rather than waiting for the throttle timer, so the
+    // border doesn't visibly lag after the gesture actually ends.
+    if (unionFlushTimer) {
+      clearTimeout(unionFlushTimer);
+      unionFlushTimer = null;
+    }
+    flushBorderUnion();
   }
 
   map.on("mousedown", onScratchStart);
