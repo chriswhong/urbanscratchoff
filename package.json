@@ -1,0 +1,33 @@
+{
+  "name": "urbanscratchoff",
+  "version": "1.0.0",
+  "description": "Scratch away historical aerial imagery of NYC to reveal the present day underneath.",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/chriswhong/urbanscratchoff.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/chriswhong/urbanscratchoff/issues"
+  },
+  "homepage": "https://github.com/chriswhong/urbanscratchoff#readme",
+  "dependencies": {
+    "@turf/circle": "^7.4.0",
+    "@turf/helpers": "^7.4.0",
+    "@turf/simplify": "^7.4.0",
+    "@turf/union": "^7.4.0",
+    "bootstrap": "^3.3.6",
+    "jquery": "^2.1.4",
+    "maplibre-gl": "^5.24.0"
+  },
+  "devDependencies": {
+    "vite": "^8.2.2"
+  }
+}

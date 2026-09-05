@@ -2,6 +2,28 @@
 
 Test it here [http://chriswhong.github.io/urbanscratchoff/](http://chriswhong.github.io/urbanscratchoff/)
 
+## Development
+
+This is a [Vite](https://vitejs.dev/) app.
+
+```
+npm install
+npm run dev      # local dev server with hot reload
+npm run build    # production build, output to dist/
+npm run preview  # serve the production build locally
+```
+
+Source lives under `src/`:
+
+- `main.js` -- entry point, wires everything together
+- `constants.js` -- shared tuning constants
+- `scratchLayer.js` -- the custom WebGL layer that renders and erases the scratchable top imagery
+- `border.js` / `workers/borderWorker.js` -- the vector "torn edge" border tracing the scratched area, computed off the main thread
+- `labels.js` -- place/street labels from OpenFreeMap vector tiles
+- `mapLayers.js` -- wires the raster layers, scratch layer, border, and labels together, and handles swapping them
+- `interaction.js` -- drag-to-scratch and pan-modifier input handling
+- `ui.js` -- sidebar/navbar DOM wiring (jQuery + Bootstrap)
+
 ## About
 
 Near where I live in Brooklyn, the BQE runs through a trench in the ground. I've always read and heard about the condemned buildings and displaced people that used to live where our urban highways run, so I thought it would be a good visual to allow the user to manually "Reveal" the urban highway by "Scratching" or mousing over a historic aerial photo.
