@@ -4,7 +4,7 @@ $(document).ready(function () {
   var TILE_SIZE = 256;
   var BRUSH_RADIUS = 30; // scales with zoom -- see applyStampToTile()
   var BORDER_LINE_WIDTH = 8; // constant screen pixels -- see the border-layer section below
-  var UNION_FLUSH_DELAY = 200; // ms, throttles how often the border polygon is recomputed
+  var UNION_FLUSH_DELAY = 80; // ms, batches circles sent to the border worker
   var MAX_TILE_SPAN = 20; // per-axis cap on tiles considered, guards against huge pitched viewports
   var MAX_CACHED_TILES = 400; // simple memory cap for the scratch tile cache
 
@@ -33,9 +33,18 @@ $(document).ready(function () {
   // raster tiles -- see the big comment above ensureBorderLayer() for why.
   var borderSourceId = "scratch-border";
   var borderLayerId = "scratch-border-line";
-  var borderUnion = null; // accumulated Turf Feature<Polygon|MultiPolygon>, or null
   var pendingCircles = [];
   var unionFlushTimer = null;
+  // The union itself is computed in a Web Worker (see border-worker.js) so
+  // turf.union() never blocks scratching or event handling on the main
+  // thread, no matter how expensive it gets over a long session.
+  var borderWorker = new Worker("js/border-worker.js");
+  borderWorker.onmessage = function (e) {
+    var source = map.getSource(borderSourceId);
+    if (!source) return;
+    var feature = e.data.feature;
+    source.setData(feature ? turf.featureCollection([feature]) : turf.featureCollection([]));
+  };
 
   // ---- map setup ------------------------------------------------------
 
@@ -414,11 +423,14 @@ $(document).ready(function () {
   // (sized in real-world meters, matching the raster erase hole's own
   // geospatial scaling), folded into one running unioned polygon.
   //
-  // Recomputing that union on every single stamp would be wasteful --
-  // dragging can generate dozens of interpolated stamps per second -- so
-  // new circles are queued and merged in a batch at most once every
-  // UNION_FLUSH_DELAY ms, with an immediate flush on gesture end so the
-  // border doesn't lag visibly after releasing.
+  // Posting circles to the worker on every single stamp would still be
+  // wasteful message-passing overhead -- dragging can generate dozens of
+  // interpolated stamps per second -- so new circles are queued and sent as
+  // one batch at most every UNION_FLUSH_DELAY ms, with an immediate flush
+  // on gesture end so the border doesn't lag visibly after releasing. The
+  // union computation itself never blocks the main thread either way (see
+  // borderWorker above), so this delay is purely about batching, not
+  // waiting out an expensive computation.
 
   function metersPerPixel(lat, zoom) {
     return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
@@ -428,7 +440,7 @@ $(document).ready(function () {
     var radiusMeters = BRUSH_RADIUS * metersPerPixel(lngLat.lat, tileZ);
     pendingCircles.push(
       turf.circle([lngLat.lng, lngLat.lat], radiusMeters, {
-        steps: 24,
+        steps: 12,
         units: "meters",
       })
     );
@@ -440,33 +452,21 @@ $(document).ready(function () {
   function flushBorderUnion() {
     unionFlushTimer = null;
     if (pendingCircles.length === 0) return;
-
     var newCircles = pendingCircles;
     pendingCircles = [];
-    var allPolygons = borderUnion ? [borderUnion].concat(newCircles) : newCircles;
-    borderUnion =
-      allPolygons.length === 1
-        ? allPolygons[0]
-        : turf.union(turf.featureCollection(allPolygons));
-
-    var source = map.getSource(borderSourceId);
-    if (source) {
-      source.setData(
-        borderUnion ? turf.featureCollection([borderUnion]) : turf.featureCollection([])
-      );
-    }
+    borderWorker.postMessage({ type: "addCircles", circles: newCircles });
   }
 
   // Cancels any pending circles and clears the rendered border -- called
   // whenever the scratch layer itself resets (e.g. on swap), so the border
   // never ends up tracing an area that's no longer actually scratched.
   function resetBorder() {
-    borderUnion = null;
     pendingCircles = [];
     if (unionFlushTimer) {
       clearTimeout(unionFlushTimer);
       unionFlushTimer = null;
     }
+    borderWorker.postMessage({ type: "reset" });
     var source = map.getSource(borderSourceId);
     if (source) source.setData(turf.featureCollection([]));
   }
