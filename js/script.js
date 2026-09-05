@@ -120,6 +120,61 @@ $(document).ready(function () {
     // (which traces its erased area) has to reset along with it.
     resetBorder();
     ensureBorderLayer();
+
+    // Labels should always sit above both the raster layers and the
+    // scratch border, so re-stack them on top every time those get
+    // recreated too.
+    ensureLabelLayers();
+  }
+
+  // ---- labels (OpenFreeMap vector tiles) -------------------------------
+  //
+  // Place, water, and street labels from OpenFreeMap's "planet" vector
+  // tileset, using the symbol layers copied from OpenFreeMap's "dark"
+  // style (data/label-layers.json) as a starting point -- see
+  // https://openfreemap.org. Loaded once and re-stacked on top whenever
+  // addTileLayers() recreates the layers below it (e.g. on swap).
+
+  var labelConfig = null;
+
+  fetch("data/label-layers.json")
+    .then(function (r) {
+      return r.json();
+    })
+    .then(function (config) {
+      labelConfig = config;
+      ensureLabelLayers();
+    })
+    .catch(function (err) {
+      console.error("Failed to load label layers:", err);
+    });
+
+  function ensureLabelLayers() {
+    // The JSON fetch and the map's style becoming safe to mutate
+    // (addSource/addLayer throw before that) are two independent async
+    // things. If the fetch wins the race, just wait: not just skip and
+    // hope some *other* call happens to retry later once the style is
+    // ready -- that's not actually guaranteed, and silently never adding
+    // the labels is worse than one extra retry.
+    if (!labelConfig) return;
+    if (!map.isStyleLoaded()) {
+      map.once("idle", ensureLabelLayers);
+      return;
+    }
+
+    if (!map.getSource(labelConfig.sourceId)) {
+      map.addSource(labelConfig.sourceId, labelConfig.source);
+      map.setGlyphs(labelConfig.glyphs);
+      map.setSprite(labelConfig.sprite);
+    }
+
+    labelConfig.layers.forEach(function (layer) {
+      if (map.getLayer(layer.id)) {
+        map.moveLayer(layer.id);
+      } else {
+        map.addLayer(layer);
+      }
+    });
   }
 
   // ---- Custom WebGL "canvas layer" ------------------------------------
