@@ -1,6 +1,5 @@
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import "bootstrap/dist/css/bootstrap.min.css";
 import "./styles.css";
 
 import { DEFAULT_TILE_LAYERS } from "./constants.js";
@@ -49,8 +48,8 @@ map.on("load", function () {
   });
 
   // Zoom, rotate, and pitch all use gestures (scroll wheel, two-finger
-  // touch, right-button/Ctrl+drag) that never collide with a plain
-  // single-button/single-finger scratch drag, so they stay on
+  // touch, right-button/Ctrl+drag, Shift+drag) that never collide with a
+  // plain single-button/single-finger scratch drag, so they stay on
   // unconditionally in both UI modes. Only dragPan needs to be gated --
   // see interaction.js.
   map.scrollZoom.enable();
@@ -59,11 +58,7 @@ map.on("load", function () {
   map.touchPitch.enable();
   map.dragRotate.enable();
   map.keyboard.enable();
-  // MapLibre's default Shift+drag gesture is boxZoom (draw a box to zoom
-  // into); interaction.js repurposes Shift+drag as the pan modifier
-  // instead, so this has to stay off to avoid the two fighting over the
-  // same gesture.
-  map.boxZoom.disable();
+  map.boxZoom.enable();
 
   interaction.setMode(true);
 });

@@ -22,7 +22,7 @@ Source lives under `src/`:
 - `labels.js` -- place/street labels from OpenFreeMap vector tiles
 - `mapLayers.js` -- wires the raster layers, scratch layer, border, and labels together, and handles swapping them
 - `interaction.js` -- drag-to-scratch and pan-modifier input handling
-- `ui.js` -- sidebar/navbar DOM wiring (jQuery + Bootstrap)
+- `ui.js` -- sidebar/navbar DOM wiring (vanilla JS, styled with Tailwind CSS)
 
 ## About
 

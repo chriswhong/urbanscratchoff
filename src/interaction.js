@@ -9,10 +9,10 @@ import { STAMP_SPACING } from "./constants.js";
 // pre-enables it on keydown -- so it's already active *before* the next
 // mousedown, avoiding a race with MapLibre's own internal drag handler).
 //
-// Hold Shift while dragging in Scratch Off mode to pan the map instead of
-// scratching -- Ctrl/Cmd+drag and right-drag are left to MapLibre's own
-// always-on dragRotate handler for pitch/rotate (see isNavigationGesture
-// below).
+// Hold Cmd/Win (the "Meta" key) while dragging in Scratch Off mode to pan
+// the map instead of scratching -- Ctrl+drag and right-drag are left to
+// MapLibre's own always-on dragRotate handler for pitch/rotate (see
+// isNavigationGesture below).
 export function setupInteraction(map, { onScratch, onGestureEnd }) {
   let scratchoffMode = true;
   let panModifierHeld = false;
@@ -39,14 +39,14 @@ export function setupInteraction(map, { onScratch, onGestureEnd }) {
   }
 
   function onPanModifierDown(e) {
-    if (e.key !== "Shift" || panModifierHeld) return;
+    if (e.key !== "Meta" || panModifierHeld) return;
     panModifierHeld = true;
     updateDragPan();
     updateCursor();
   }
 
   function onPanModifierUp(e) {
-    if (e.key !== "Shift") return;
+    if (e.key !== "Meta") return;
     panModifierHeld = false;
     updateDragPan();
     updateCursor();
@@ -77,13 +77,14 @@ export function setupInteraction(map, { onScratch, onGestureEnd }) {
     }
   }
 
-  // True for a gesture MapLibre's always-on dragRotate handler owns
-  // (Ctrl/Cmd+drag or right-button drag) or for a Shift-held pan drag --
-  // in both cases we defer entirely rather than also scratching.
+  // True for a gesture MapLibre's own always-on handlers own -- Ctrl+drag
+  // or right-button drag (dragRotate), Shift+drag (boxZoom), or a
+  // Cmd/Win-held pan drag -- in all cases we defer entirely rather than
+  // also scratching.
   function isNavigationGesture(e) {
     const oe = e.originalEvent;
     if (!oe) return false;
-    return !!(oe.shiftKey || oe.ctrlKey || oe.metaKey || oe.button === 2);
+    return !!(oe.metaKey || oe.ctrlKey || oe.shiftKey || oe.button === 2);
   }
 
   function onScratchStart(e) {

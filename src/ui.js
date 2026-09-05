@@ -1,46 +1,67 @@
-import $ from "jquery";
-
-// Bootstrap 3's JS (the `.modal()` plugin used for the About dialog) is a
-// plain UMD build that expects a global jQuery to attach itself to, not an
-// ES module import -- so it has to be exposed on window before the plugin
-// script runs. A dynamic import (rather than a static one) is required
-// here: static imports are hoisted above all other code in a module
-// regardless of where they're written, so the window assignment below
-// would otherwise still run *after* bootstrap's own module already
-// executed and found no global jQuery.
-window.jQuery = window.$ = $;
-await import("bootstrap/dist/js/bootstrap.js");
-
 // ---- UI wiring ----------------------------------------------------
 //
-// Pure DOM/jQuery glue: no map or scratch logic lives here, just wiring
-// the sidebar controls to the callbacks the caller supplies.
+// Pure DOM glue: no map or scratch logic lives here, just wiring the
+// sidebar/navbar controls to the callbacks the caller supplies.
 export function setupUI({ onModeChange, onSwap }) {
-  $("#modePanAndZoom").click(function () {
-    $(".btn-mode").removeClass("active");
-    $(this).addClass("active");
+  const panBtn = document.getElementById("modePanAndZoom");
+  const scratchBtn = document.getElementById("modeScratchoff");
+  const swapBtn = document.getElementById("swap");
+  const aboutBtn = document.getElementById("about-btn");
+  const aboutModal = document.getElementById("aboutModal");
+
+  function setActiveModeButton(btn) {
+    document.querySelectorAll(".btn-mode").forEach((el) => el.classList.remove("active"));
+    btn.classList.add("active");
+  }
+
+  panBtn.addEventListener("click", function () {
+    setActiveModeButton(panBtn);
     onModeChange(false);
   });
 
-  $("#modeScratchoff").click(function () {
-    $(".btn-mode").removeClass("active");
-    $(this).addClass("active");
+  scratchBtn.addEventListener("click", function () {
+    setActiveModeButton(scratchBtn);
     onModeChange(true);
   });
 
-  $("#swap").click(function () {
+  swapBtn.addEventListener("click", function () {
     onSwap();
   });
 
-  $("#about-btn").click(function () {
-    $("#aboutModal").modal("show");
-    return false;
+  function showAboutModal() {
+    aboutModal.classList.remove("hidden");
+    aboutModal.classList.add("flex");
+  }
+
+  function hideAboutModal() {
+    aboutModal.classList.add("hidden");
+    aboutModal.classList.remove("flex");
+  }
+
+  aboutBtn.addEventListener("click", function (e) {
+    e.preventDefault();
+    showAboutModal();
+  });
+
+  aboutModal.querySelectorAll(".about-modal-close").forEach((btn) => {
+    btn.addEventListener("click", hideAboutModal);
+  });
+
+  // Click on the backdrop (not the dialog itself) closes the modal.
+  aboutModal.addEventListener("click", function (e) {
+    if (e.target === aboutModal) hideAboutModal();
+  });
+
+  window.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !aboutModal.classList.contains("hidden")) {
+      hideAboutModal();
+    }
   });
 
   return {
     setLayerNames: function (bottomName, topName) {
-      $("#bottomLayerButton").text(bottomName);
-      $("#topLayerButton").text(topName);
+      document.getElementById("bottomLayerButton").textContent = bottomName;
+      document.getElementById("topLayerButton").textContent = topName;
     },
   };
 }
