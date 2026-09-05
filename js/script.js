@@ -20,6 +20,7 @@ $(document).ready(function () {
   ];
 
   var scratchoffMode = true;
+  var panModifierHeld = false;
   var isDrawing = false;
   var baseSourceId = "base-tiles";
   var baseLayerId = "base-layer";
@@ -46,8 +47,27 @@ $(document).ready(function () {
     renderWorldCopies: false,
   });
 
+  map.addControl(new maplibregl.NavigationControl());
+
   map.on("load", function () {
     addTileLayers(tileLayers);
+
+    // Zoom, rotate, and pitch all use gestures (scroll wheel, two-finger
+    // touch, right-button/Ctrl+drag) that never collide with a plain
+    // single-button/single-finger scratch drag, so they stay on
+    // unconditionally in both UI modes. Only dragPan needs to be gated --
+    // see setMode()/updateDragPan() below.
+    map.scrollZoom.enable();
+    map.doubleClickZoom.enable();
+    map.touchZoomRotate.enable();
+    map.touchPitch.enable();
+    map.dragRotate.enable();
+    map.keyboard.enable();
+    // MapLibre's default Shift+drag gesture is boxZoom (draw a box to zoom
+    // into); we repurpose Shift+drag as the pan modifier instead, so this
+    // has to stay off to avoid the two fighting over the same gesture.
+    map.boxZoom.disable();
+
     setMode(scratchoffMode);
   });
 
@@ -489,29 +509,57 @@ $(document).ready(function () {
 
   // ---- interaction ------------------------------------------------------
 
+  // dragPan is the only interaction that's ever gated: it shares the same
+  // plain left-button/single-finger drag gesture as scratching, so only one
+  // of them can own it at a time. It's on permanently in "Pan & Zoom Map"
+  // mode, and otherwise only while the pan modifier key is held (which
+  // pre-enables it on keydown -- see below -- so it's already active
+  // *before* the next mousedown, avoiding a race with MapLibre's own
+  // internal drag handler).
+  function updateDragPan() {
+    if (!scratchoffMode || panModifierHeld) {
+      map.dragPan.enable();
+    } else {
+      map.dragPan.disable();
+    }
+  }
+
+  function updateCursor() {
+    var panning = !scratchoffMode || panModifierHeld;
+    map.getCanvas().style.cursor = panning ? "grab" : "crosshair";
+  }
+
   function setMode(scratching) {
     scratchoffMode = scratching;
-
-    var interactions = [
-      "dragPan",
-      "scrollZoom",
-      "doubleClickZoom",
-      "touchZoomRotate",
-      "dragRotate",
-      "keyboard",
-      "touchPitch",
-    ];
-    interactions.forEach(function (name) {
-      if (!map[name]) return;
-      if (scratching) {
-        map[name].disable();
-      } else {
-        map[name].enable();
-      }
-    });
-
-    map.getCanvas().style.cursor = scratching ? "crosshair" : "grab";
+    updateDragPan();
+    updateCursor();
   }
+
+  // Hold Shift while dragging in Scratch Off mode to pan the map instead of
+  // scratching -- Ctrl/Cmd+drag and right-drag are left to MapLibre's own
+  // always-on dragRotate handler for pitch/rotate (see onScratchStart).
+  function onPanModifierDown(e) {
+    if (e.key !== "Shift" || panModifierHeld) return;
+    panModifierHeld = true;
+    updateDragPan();
+    updateCursor();
+  }
+
+  function onPanModifierUp(e) {
+    if (e.key !== "Shift") return;
+    panModifierHeld = false;
+    updateDragPan();
+    updateCursor();
+  }
+
+  window.addEventListener("keydown", onPanModifierDown);
+  window.addEventListener("keyup", onPanModifierUp);
+  window.addEventListener("blur", function () {
+    if (!panModifierHeld) return;
+    panModifierHeld = false;
+    updateDragPan();
+    updateCursor();
+  });
 
   var lastPoint = null;
   var STAMP_SPACING = BRUSH_RADIUS / 3;
@@ -532,8 +580,17 @@ $(document).ready(function () {
     }
   }
 
+  // True for a gesture MapLibre's always-on dragRotate handler owns
+  // (Ctrl/Cmd+drag or right-button drag) or for a Shift-held pan drag --
+  // in both cases we defer entirely rather than also scratching.
+  function isNavigationGesture(e) {
+    var oe = e.originalEvent;
+    if (!oe) return false;
+    return !!(oe.shiftKey || oe.ctrlKey || oe.metaKey || oe.button === 2);
+  }
+
   function onScratchStart(e) {
-    if (!scratchoffMode) return;
+    if (!scratchoffMode || isNavigationGesture(e)) return;
     isDrawing = true;
     lastPoint = e.point;
     scratchLayer.scratchAt(e.lngLat);
