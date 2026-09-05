@@ -100,6 +100,9 @@ ScratchLayer.prototype.getOrCreateTile = function (z, x, y) {
   canvas.height = TILE_SIZE;
 
   tile = {
+    z: z,
+    x: x,
+    y: y,
     canvas: canvas,
     ctx: canvas.getContext("2d"),
     texture: null,
@@ -201,20 +204,33 @@ ScratchLayer.prototype.scratchAt = function (lngLat) {
   var baseTileX = Math.floor(px / TILE_SIZE);
   var baseTileY = Math.floor(py / TILE_SIZE);
 
-  var touched = false;
+  // Make sure the tiles right around the stamp exist at the current zoom
+  // -- a brand new one replays the full stamp history (including this
+  // one, already pushed above) via rebuildTile once its image loads.
   for (var ty = baseTileY - 1; ty <= baseTileY + 1; ty++) {
     if (ty < 0 || ty >= n) continue;
     for (var tx = baseTileX - 1; tx <= baseTileX + 1; tx++) {
       if (tx < 0 || tx >= n) continue;
-
-      var tile = this.getOrCreateTile(tileZ, tx, ty);
-      if (!tile.loaded) continue;
-      if (this.applyStampToTile(tile, stamp, tileZ, tx, ty)) {
-        tile.dirty = true;
-        touched = true;
-      }
+      this.getOrCreateTile(tileZ, tx, ty);
     }
   }
+
+  // Apply this stamp to every already-loaded cached tile, at *any* zoom
+  // -- not just the current one. Without this, a tile cached from an
+  // earlier visit to a different zoom level (e.g. passed through while
+  // panning before this scratch was made) would keep showing unscratched
+  // imagery next time that zoom is revisited, since it's already loaded
+  // and getOrCreateTile() would just hand it back as-is without ever
+  // replaying this stamp into it.
+  var touched = false;
+  var self = this;
+  this.tiles.forEach(function (tile) {
+    if (!tile.loaded) return;
+    if (self.applyStampToTile(tile, stamp, tile.z, tile.x, tile.y)) {
+      tile.dirty = true;
+      touched = true;
+    }
+  });
 
   if (touched) this.map.triggerRepaint();
 };
