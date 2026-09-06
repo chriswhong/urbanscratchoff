@@ -1,7 +1,9 @@
 import { circle } from "@turf/circle";
 import { featureCollection } from "@turf/helpers";
-import { BRUSH_RADIUS, BORDER_LINE_WIDTH, UNION_FLUSH_DELAY } from "./constants.js";
-import BorderWorker from "./workers/borderWorker.js?worker";
+import type { Feature, Polygon, MultiPolygon } from "geojson";
+import { GeoJSONSource, type Map as MapLibreMap, type LngLat } from "maplibre-gl";
+import { BRUSH_RADIUS, BORDER_LINE_WIDTH, UNION_FLUSH_DELAY } from "../constants";
+import BorderWorker from "../workers/borderWorker?worker";
 
 // ---- border layer (vector line) ---------------------------------------
 //
@@ -22,7 +24,7 @@ import BorderWorker from "./workers/borderWorker.js?worker";
 // Turf computes that union: each stamp becomes a circle polygon (sized in
 // real-world meters, matching the raster erase hole's own geospatial
 // scaling), folded into one running unioned polygon -- in a Web Worker
-// (borderWorker.js) so the union computation never blocks the main thread,
+// (borderWorker.ts) so the union computation never blocks the main thread,
 // no matter how expensive it gets over a long scratching session.
 //
 // Posting circles to the worker on every single stamp would still be
@@ -34,27 +36,28 @@ import BorderWorker from "./workers/borderWorker.js?worker";
 const SOURCE_ID = "scratch-border";
 const LAYER_ID = "scratch-border-line";
 
-function metersPerPixel(lat, zoom) {
+type BorderFeature = Feature<Polygon | MultiPolygon>;
+type WorkerUpdateMessage = { type: "update"; feature: BorderFeature | null };
+
+function metersPerPixel(lat: number, zoom: number) {
   return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
 }
 
-export function createBorderLayer(map) {
-  let pendingCircles = [];
-  let flushTimer = null;
+export function createBorderLayer(map: MapLibreMap) {
+  let pendingCircles: BorderFeature[] = [];
+  let flushTimer: ReturnType<typeof setTimeout> | null = null;
   const worker = new BorderWorker();
 
-  worker.onmessage = function (e) {
+  worker.onmessage = function (e: MessageEvent<WorkerUpdateMessage>) {
     const source = map.getSource(SOURCE_ID);
-    if (!source) return;
+    if (!(source instanceof GeoJSONSource)) return;
     const feature = e.data.feature;
     source.setData(feature ? featureCollection([feature]) : featureCollection([]));
   };
 
-  function queueCircle(lngLat, tileZ) {
+  function queueCircle(lngLat: LngLat, tileZ: number) {
     const radiusMeters = BRUSH_RADIUS * metersPerPixel(lngLat.lat, tileZ);
-    pendingCircles.push(
-      circle([lngLat.lng, lngLat.lat], radiusMeters, { steps: 24, units: "meters" })
-    );
+    pendingCircles.push(circle([lngLat.lng, lngLat.lat], radiusMeters, { steps: 24, units: "meters" }));
     if (!flushTimer) {
       flushTimer = setTimeout(flush, UNION_FLUSH_DELAY);
     }
@@ -89,7 +92,7 @@ export function createBorderLayer(map) {
     }
     worker.postMessage({ type: "reset" });
     const source = map.getSource(SOURCE_ID);
-    if (source) source.setData(featureCollection([]));
+    if (source instanceof GeoJSONSource) source.setData(featureCollection([]));
   }
 
   // Adds the border source/layer the first time, or just moves it back to

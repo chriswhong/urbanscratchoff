@@ -4,25 +4,28 @@ Test it here [http://chriswhong.github.io/urbanscratchoff/](http://chriswhong.gi
 
 ## Development
 
-This is a [Vite](https://vitejs.dev/) app.
+This is a [Vite](https://vitejs.dev/) + React + TypeScript app.
 
 ```
 npm install
-npm run dev      # local dev server with hot reload
-npm run build    # production build, output to dist/
-npm run preview  # serve the production build locally
+cp .env.example .env   # add your own geocode.earth API key for search
+npm run dev        # local dev server with hot reload
+npm run build      # type-checks, then production build to dist/
+npm run preview    # serve the production build locally
+npm run typecheck  # type-check only
 ```
 
 Source lives under `src/`:
 
-- `main.js` -- entry point, wires everything together
-- `constants.js` -- shared tuning constants
-- `scratchLayer.js` -- the custom WebGL layer that renders and erases the scratchable top imagery
-- `border.js` / `workers/borderWorker.js` -- the vector "torn edge" border tracing the scratched area, computed off the main thread
-- `labels.js` -- place/street labels from OpenFreeMap vector tiles
-- `mapLayers.js` -- wires the raster layers, scratch layer, border, and labels together, and handles swapping them
-- `interaction.js` -- drag-to-scratch and pan-modifier input handling
-- `ui.js` -- floating panel/about-modal DOM wiring (vanilla JS, styled with Tailwind CSS)
+- `main.tsx` / `App.tsx` -- entry point and top-level component
+- `constants.ts` / `types.ts` -- shared tuning constants and types
+- `lib/scratchLayer.ts` -- the custom WebGL layer that renders and erases the scratchable top imagery
+- `lib/border.ts` / `workers/borderWorker.ts` -- the vector "torn edge" border tracing the scratched area, computed off the main thread
+- `lib/labels.ts` -- place/street labels from OpenFreeMap vector tiles
+- `lib/mapLayers.ts` -- wires the raster layers, scratch layer, border, and labels together, and handles swapping them
+- `lib/interaction.ts` -- drag-to-scratch and pan-modifier input handling
+- `hooks/` -- React glue around the above (map creation, controls, layers, interaction)
+- `components/Panel.tsx`, `components/SearchBox.tsx`, `components/AboutModal.tsx` -- the UI
 
 ## About
 

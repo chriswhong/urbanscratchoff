@@ -1,11 +1,17 @@
-import { TILE_SIZE } from "./constants.js";
-import { ScratchLayer } from "./scratchLayer.js";
-import { createBorderLayer } from "./border.js";
-import { createLabelLayers } from "./labels.js";
+import type { Map as MapLibreMap, LngLat } from "maplibre-gl";
+import { TILE_SIZE } from "../constants";
+import { ScratchLayer } from "./scratchLayer";
+import { createBorderLayer } from "./border";
+import { createLabelLayers } from "./labels";
+import type { TileLayer } from "../types";
 
 const BASE_SOURCE_ID = "base-tiles";
 const BASE_LAYER_ID = "base-layer";
 const SCRATCH_LAYER_ID = "scratch-layer";
+
+interface MapLayersOptions {
+  onLayersChanged?: (bottomName: string, topName: string) => void;
+}
 
 // Owns the base raster layer, the scratch layer, the border, and the
 // labels together, since swapping the two tile layers means recreating
@@ -13,9 +19,9 @@ const SCRATCH_LAYER_ID = "scratch-layer";
 // border and labels both need to react to that (border resets since it
 // traces the scratch layer's erased area; labels just need to be
 // re-stacked back on top).
-export function createMapLayers(map, initialTileLayers, { onLayersChanged } = {}) {
-  let layers = initialTileLayers.slice();
-  let scratchLayer = null;
+export function createMapLayers(map: MapLibreMap, initialTileLayers: [TileLayer, TileLayer], { onLayersChanged }: MapLayersOptions = {}) {
+  let layers: [TileLayer, TileLayer] = [...initialTileLayers];
+  let scratchLayer: ScratchLayer | null = null;
   const border = createBorderLayer(map);
   const labels = createLabelLayers(map);
 
@@ -23,7 +29,7 @@ export function createMapLayers(map, initialTileLayers, { onLayersChanged } = {}
     const bottomLayer = layers[0];
     const topLayer = layers[1];
 
-    if (onLayersChanged) onLayersChanged(bottomLayer.name, topLayer.name);
+    onLayersChanged?.(bottomLayer.name, topLayer.name);
 
     if (map.getLayer(BASE_LAYER_ID)) map.removeLayer(BASE_LAYER_ID);
     if (map.getSource(BASE_SOURCE_ID)) map.removeSource(BASE_SOURCE_ID);
@@ -57,7 +63,7 @@ export function createMapLayers(map, initialTileLayers, { onLayersChanged } = {}
 
   // Erases into the raster tile and queues the matching border circle
   // together, so the two stay in sync at every stamp.
-  function scratchAt(lngLat) {
+  function scratchAt(lngLat: LngLat) {
     if (!scratchLayer || scratchLayer.tileZ === null) return;
     const tileZ = scratchLayer.tileZ;
     scratchLayer.scratchAt(lngLat);

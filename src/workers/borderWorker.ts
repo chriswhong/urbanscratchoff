@@ -5,8 +5,23 @@
 import { union } from "@turf/union";
 import { simplify } from "@turf/simplify";
 import { featureCollection } from "@turf/helpers";
+import type { Feature, Polygon, MultiPolygon } from "geojson";
 
-let accumulated = null;
+type BorderFeature = Feature<Polygon | MultiPolygon>;
+
+type IncomingMessage = { type: "reset" } | { type: "addCircles"; circles: BorderFeature[] };
+
+// A minimal local stand-in for DedicatedWorkerGlobalScope, rather than
+// adding a "webworker" lib to the app-wide tsconfig, which would conflict
+// with the DOM lib the rest of the app needs (both declare a
+// differently-typed global `self`).
+interface WorkerSelf {
+  postMessage(message: { type: "update"; feature: BorderFeature | null }): void;
+  onmessage: ((this: WorkerSelf, ev: MessageEvent<IncomingMessage>) => void) | null;
+}
+const worker = self as unknown as WorkerSelf;
+
+let accumulated: BorderFeature | null = null;
 let flushCount = 0;
 
 // Periodically simplifying keeps the accumulated polygon's vertex count (and
@@ -17,19 +32,19 @@ let flushCount = 0;
 const SIMPLIFY_TOLERANCE = 0.000004;
 const SIMPLIFY_EVERY = 6; // circles carry 24 vertices (for roundness), so simplify often to keep total complexity growth in check
 
-self.onmessage = function (e) {
+worker.onmessage = function (e: MessageEvent<IncomingMessage>) {
   const msg = e.data;
 
   if (msg.type === "reset") {
     accumulated = null;
     flushCount = 0;
-    self.postMessage({ type: "update", feature: null });
+    worker.postMessage({ type: "update", feature: null });
     return;
   }
 
   if (msg.type === "addCircles") {
     const polygons = accumulated ? [accumulated, ...msg.circles] : msg.circles;
-    accumulated = polygons.length === 1 ? polygons[0] : union(featureCollection(polygons));
+    accumulated = polygons.length === 1 ? polygons[0] : (union(featureCollection(polygons)) as BorderFeature | null);
 
     flushCount++;
     if (accumulated && flushCount % SIMPLIFY_EVERY === 0) {
@@ -38,12 +53,12 @@ self.onmessage = function (e) {
           tolerance: SIMPLIFY_TOLERANCE,
           highQuality: false,
         });
-      } catch (err) {
+      } catch {
         // simplify can occasionally choke on degenerate geometry -- keep the
         // unsimplified polygon rather than losing the border entirely.
       }
     }
 
-    self.postMessage({ type: "update", feature: accumulated });
+    worker.postMessage({ type: "update", feature: accumulated });
   }
 };

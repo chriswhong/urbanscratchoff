@@ -1,4 +1,5 @@
-import labelConfig from "./data/label-layers.json";
+import type { Map as MapLibreMap, SourceSpecification, LayerSpecification } from "maplibre-gl";
+import labelConfig from "../data/label-layers.json";
 
 // ---- labels (OpenFreeMap vector tiles) -------------------------------
 //
@@ -8,7 +9,17 @@ import labelConfig from "./data/label-layers.json";
 // https://openfreemap.org. Added once and re-stacked on top whenever the
 // layers below get recreated (e.g. on swap).
 
-export function createLabelLayers(map) {
+interface LabelConfig {
+  sourceId: string;
+  source: SourceSpecification;
+  glyphs: string;
+  sprite: string;
+  layers: LayerSpecification[];
+}
+
+const config = labelConfig as LabelConfig;
+
+export function createLabelLayers(map: MapLibreMap) {
   function ensure() {
     // addSource/addLayer throw before the style has finished loading, so
     // reschedule via the map's own "idle" event rather than hoping some
@@ -18,13 +29,13 @@ export function createLabelLayers(map) {
       return;
     }
 
-    if (!map.getSource(labelConfig.sourceId)) {
-      map.addSource(labelConfig.sourceId, labelConfig.source);
-      map.setGlyphs(labelConfig.glyphs);
-      map.setSprite(labelConfig.sprite);
+    if (!map.getSource(config.sourceId)) {
+      map.addSource(config.sourceId, config.source);
+      map.setGlyphs(config.glyphs);
+      map.setSprite(config.sprite);
     }
 
-    labelConfig.layers.forEach(function (layer) {
+    config.layers.forEach((layer) => {
       if (map.getLayer(layer.id)) {
         map.moveLayer(layer.id);
       } else {

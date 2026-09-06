@@ -1,4 +1,10 @@
-import { STAMP_SPACING } from "./constants.js";
+import type { Map as MapLibreMap, MapMouseEvent, MapTouchEvent, Point, LngLat } from "maplibre-gl";
+import { STAMP_SPACING } from "../constants";
+
+interface InteractionOptions {
+  onScratch: (lngLat: LngLat) => void;
+  onGestureEnd?: () => void;
+}
 
 // ---- interaction ------------------------------------------------------
 //
@@ -15,11 +21,11 @@ import { STAMP_SPACING } from "./constants.js";
 // scratching -- Ctrl+drag and right-drag are left to MapLibre's own
 // always-on dragRotate handler for pitch/rotate (see isNavigationGesture
 // below).
-export function setupInteraction(map, { onScratch, onGestureEnd }) {
+export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd }: InteractionOptions) {
   let panModifierHeld = false;
   let touchPanning = false;
   let isDrawing = false;
-  let lastPoint = null;
+  let lastPoint: Point | null = null;
 
   function updateDragPan() {
     if (panModifierHeld || touchPanning) {
@@ -38,15 +44,22 @@ export function setupInteraction(map, { onScratch, onGestureEnd }) {
   map.dragPan.disable();
   updateCursor();
 
-  function onPanModifierDown(e) {
+  function onPanModifierDown(e: KeyboardEvent) {
     if (e.key !== "Meta" || panModifierHeld) return;
     panModifierHeld = true;
     updateDragPan();
     updateCursor();
   }
 
-  function onPanModifierUp(e) {
+  function onPanModifierUp(e: KeyboardEvent) {
     if (e.key !== "Meta") return;
+    panModifierHeld = false;
+    updateDragPan();
+    updateCursor();
+  }
+
+  function onWindowBlur() {
+    if (!panModifierHeld) return;
     panModifierHeld = false;
     updateDragPan();
     updateCursor();
@@ -54,47 +67,45 @@ export function setupInteraction(map, { onScratch, onGestureEnd }) {
 
   window.addEventListener("keydown", onPanModifierDown);
   window.addEventListener("keyup", onPanModifierUp);
-  window.addEventListener("blur", function () {
-    if (!panModifierHeld) return;
-    panModifierHeld = false;
-    updateDragPan();
-    updateCursor();
-  });
+  window.addEventListener("blur", onWindowBlur);
 
   // Stamp repeatedly along a screen-space segment so fast drags (or sparse
   // mousemove events) don't leave gaps -- purely cosmetic (every stamp
   // unions correctly regardless of spacing), just keeps the swept shape
   // looking like one continuous capsule instead of a string of beads.
-  function stampAlong(fromPoint, toPoint) {
+  function stampAlong(fromPoint: Point, toPoint: Point) {
     const dx = toPoint.x - fromPoint.x;
     const dy = toPoint.y - fromPoint.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
     const steps = Math.max(1, Math.ceil(dist / STAMP_SPACING));
     for (let i = 1; i <= steps; i++) {
       const t = i / steps;
-      const pt = { x: fromPoint.x + dx * t, y: fromPoint.y + dy * t };
+      const pt = { x: fromPoint.x + dx * t, y: fromPoint.y + dy * t } as Point;
       onScratch(map.unproject(pt));
     }
   }
+
+  type ScratchEvent = MapMouseEvent | MapTouchEvent;
+  type EndEvent = ScratchEvent | MouseEvent | TouchEvent;
 
   // True for a gesture MapLibre's own always-on handlers own -- Ctrl+drag
   // or right-button drag (dragRotate), Shift+drag (boxZoom), or a
   // Cmd/Win-held pan drag -- in all cases we defer entirely rather than
   // also scratching.
-  function isNavigationGesture(e) {
-    const oe = e.originalEvent;
+  function isNavigationGesture(e: ScratchEvent) {
+    const oe = e.originalEvent as MouseEvent | undefined;
     if (!oe) return false;
     return !!(oe.metaKey || oe.ctrlKey || oe.shiftKey || oe.button === 2);
   }
 
   // Number of simultaneous touches for a MapLibre touch event (e) or a
   // raw window-level TouchEvent (window's touchend fallback below).
-  function touchCount(e) {
-    const oe = e && e.originalEvent ? e.originalEvent : e;
-    return oe && oe.touches ? oe.touches.length : 0;
+  function touchCount(e: EndEvent | undefined) {
+    const oe = e && "originalEvent" in e ? e.originalEvent : e;
+    return oe && "touches" in oe ? oe.touches.length : 0;
   }
 
-  function onScratchStart(e) {
+  function onScratchStart(e: ScratchEvent) {
     if (touchCount(e) >= 2) {
       // A second finger landed -- hand the whole gesture to dragPan
       // instead, even if a first-finger scratch was already in progress.
@@ -111,7 +122,7 @@ export function setupInteraction(map, { onScratch, onGestureEnd }) {
     onScratch(e.lngLat);
   }
 
-  function onScratchMove(e) {
+  function onScratchMove(e: ScratchEvent) {
     if (touchPanning || !isDrawing) return;
     if (lastPoint) {
       stampAlong(lastPoint, e.point);
@@ -121,7 +132,7 @@ export function setupInteraction(map, { onScratch, onGestureEnd }) {
     lastPoint = e.point;
   }
 
-  function onScratchEnd(e) {
+  function onScratchEnd(e?: EndEvent) {
     if (touchPanning && touchCount(e) === 0) {
       touchPanning = false;
       updateDragPan();
@@ -129,7 +140,7 @@ export function setupInteraction(map, { onScratch, onGestureEnd }) {
     }
     isDrawing = false;
     lastPoint = null;
-    if (onGestureEnd) onGestureEnd();
+    onGestureEnd?.();
   }
 
   map.on("mousedown", onScratchStart);
@@ -140,4 +151,18 @@ export function setupInteraction(map, { onScratch, onGestureEnd }) {
   map.on("touchend", onScratchEnd);
   window.addEventListener("mouseup", onScratchEnd);
   window.addEventListener("touchend", onScratchEnd);
+
+  return function dispose() {
+    window.removeEventListener("keydown", onPanModifierDown);
+    window.removeEventListener("keyup", onPanModifierUp);
+    window.removeEventListener("blur", onWindowBlur);
+    map.off("mousedown", onScratchStart);
+    map.off("mousemove", onScratchMove);
+    map.off("mouseup", onScratchEnd);
+    map.off("touchstart", onScratchStart);
+    map.off("touchmove", onScratchMove);
+    map.off("touchend", onScratchEnd);
+    window.removeEventListener("mouseup", onScratchEnd);
+    window.removeEventListener("touchend", onScratchEnd);
+  };
 }
