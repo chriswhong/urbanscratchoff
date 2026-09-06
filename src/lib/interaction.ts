@@ -122,16 +122,6 @@ export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd, ge
   window.addEventListener("keyup", onPanModifierUp);
   window.addEventListener("blur", onWindowBlur);
 
-  // The ring is a "where's my mouse" affordance -- meaningless on touch,
-  // which has no concept of hovering before you commit to a point. Worse,
-  // mobile browsers can fire a synthetic compatibility mousemove right
-  // after a tap (to support code that only listens for mouse events),
-  // which would otherwise set hoverPoint and then never clear it, since a
-  // touch device never fires the mouseout that a real pointer leaving
-  // would. Only wire it up at all on devices whose primary pointer is
-  // fine (a real mouse/trackpad), and clear it defensively on any touch.
-  const hasFinePointer = window.matchMedia("(pointer: fine)").matches;
-
   function onHoverMove(e: MapMouseEvent) {
     hoverPoint = e.point;
     updateCursorCircle();
@@ -142,11 +132,9 @@ export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd, ge
     updateCursorCircle();
   }
 
-  if (hasFinePointer) {
-    map.on("mousemove", onHoverMove);
-    map.on("mouseout", onHoverLeave);
-    map.on("zoom", updateCursorCircle);
-  }
+  map.on("mousemove", onHoverMove);
+  map.on("mouseout", onHoverLeave);
+  map.on("zoom", updateCursorCircle);
 
   // Stamp repeatedly along a screen-space segment so fast drags (or sparse
   // mousemove events) don't leave gaps -- purely cosmetic (every stamp
@@ -187,15 +175,6 @@ export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd, ge
   }
 
   function onScratchStart(e: ScratchEvent) {
-    // Belt and suspenders alongside the pointer-fine gate above: a stray
-    // hover-ring left over from some edge case shouldn't survive into a
-    // touch gesture, since it'd otherwise be stuck at that screen
-    // position (touch has no "pointer left the area" event to clear it).
-    if ("touches" in (e.originalEvent ?? {})) {
-      hoverPoint = null;
-      updateCursorCircle();
-    }
-
     if (touchCount(e) >= 2) {
       // A second finger landed -- hand the whole gesture to dragPan
       // instead, even if a first-finger scratch was already in progress.
