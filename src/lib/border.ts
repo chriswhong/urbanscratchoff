@@ -1,7 +1,7 @@
 import { circle } from "@turf/circle";
 import { featureCollection } from "@turf/helpers";
 import type { Feature, Polygon, MultiPolygon } from "geojson";
-import { GeoJSONSource, type Map as MapLibreMap, type LngLat } from "maplibre-gl";
+import { GeoJSONSource, type Map as MapLibreMap, type LngLat, type LayerSpecification } from "maplibre-gl";
 import { BORDER_LINE_WIDTH, UNION_FLUSH_DELAY } from "../constants";
 import BorderWorker from "../workers/borderWorker?worker";
 
@@ -33,8 +33,11 @@ import BorderWorker from "../workers/borderWorker?worker";
 // one batch at most every UNION_FLUSH_DELAY ms, with an immediate flush on
 // gesture end so the border doesn't lag visibly after releasing.
 
-const SOURCE_ID = "scratch-border";
-const LAYER_ID = "scratch-border-line";
+// Exported so useMapInstance.ts can bake the (empty) source and layer into
+// the initial style, and mapLayers.ts can insert the imagery layers right
+// below this one -- see the comment on createBorderLayer below.
+export const SOURCE_ID = "scratch-border";
+export const LAYER_ID = "scratch-border-line";
 
 type BorderFeature = Feature<Polygon | MultiPolygon>;
 type WorkerUpdateMessage = { type: "update"; feature: BorderFeature | null };
@@ -43,6 +46,12 @@ function metersPerPixel(lat: number, zoom: number) {
   return (156543.03392 * Math.cos((lat * Math.PI) / 180)) / Math.pow(2, zoom);
 }
 
+// The border's source and layer are declared once, up front, as part of the
+// map's initial style (see useMapInstance.ts) rather than added here --
+// their shape never changes, only their data (via setData below), so
+// there's nothing for this module to add or re-stack. Imagery layers are
+// inserted below LAYER_ID on every swap (see mapLayers.ts) so the border
+// stays on top without ever needing to move.
 export function createBorderLayer(map: MapLibreMap) {
   let pendingCircles: BorderFeature[] = [];
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
@@ -95,25 +104,17 @@ export function createBorderLayer(map: MapLibreMap) {
     if (source instanceof GeoJSONSource) source.setData(featureCollection([]));
   }
 
-  // Adds the border source/layer the first time, or just moves it back to
-  // the top of the stack on subsequent calls (after the raster and scratch
-  // layers below it get recreated, e.g. on swap).
-  function ensureLayer() {
-    if (!map.getSource(SOURCE_ID)) {
-      map.addSource(SOURCE_ID, { type: "geojson", data: featureCollection([]) });
-    }
-    if (!map.getLayer(LAYER_ID)) {
-      map.addLayer({
-        id: LAYER_ID,
-        type: "line",
-        source: SOURCE_ID,
-        layout: { "line-join": "round", "line-cap": "round" },
-        paint: { "line-color": "#ffffff", "line-width": BORDER_LINE_WIDTH },
-      });
-    } else {
-      map.moveLayer(LAYER_ID);
-    }
-  }
+  return { queueCircle, flushNow, reset };
+}
 
-  return { queueCircle, flushNow, reset, ensureLayer };
+// The actual layer definition, baked into the initial style by
+// useMapInstance.ts.
+export function borderLayerSpec(): LayerSpecification {
+  return {
+    id: LAYER_ID,
+    type: "line",
+    source: SOURCE_ID,
+    layout: { "line-join": "round", "line-cap": "round" },
+    paint: { "line-color": "#ffffff", "line-width": BORDER_LINE_WIDTH },
+  };
 }
