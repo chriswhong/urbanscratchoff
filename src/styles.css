@@ -17,6 +17,18 @@ body {
   inset: 0;
 }
 
+/* Push the built-in zoom control down below the search box on larger
+   screens, where the search box floats independently in the same
+   top-right corner (it isn't a real MapLibre IControl, so it doesn't
+   participate in MapLibre's own corner stacking). On narrow screens the
+   search box lives inside the main panel instead, so the zoom control
+   stays put. */
+@media (min-width: 640px) {
+  .maplibregl-ctrl-top-right {
+    top: 4.5rem;
+  }
+}
+
 @keyframes coin-shake {
   0%, 100% { transform: translate(0, 0); }
   25% { transform: translate(-4px, 4px); }

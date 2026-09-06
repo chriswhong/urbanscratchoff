@@ -9,6 +9,10 @@ export function setupUI({ onSwap }) {
   const modKey = document.getElementById("mod-key");
   const topLayerRow = document.getElementById("topLayerRow");
   const bottomLayerRow = document.getElementById("bottomLayerRow");
+  const panelToggle = document.getElementById("panel-toggle");
+  const panelMore = document.getElementById("panel-more");
+  const panelToggleLabel = document.getElementById("panel-toggle-label");
+  const panelToggleIcon = document.getElementById("panel-toggle-icon");
 
   const isMac = /mac|iphone|ipad|ipod/i.test(
     navigator.userAgentData?.platform ?? navigator.platform ?? navigator.userAgent,
@@ -43,6 +47,16 @@ export function setupUI({ onSwap }) {
   }
 
   swapBtn.addEventListener("click", animateSwap);
+
+  // Mobile-only: the rest of the panel (pitch, layer order, links) starts
+  // collapsed behind this toggle so the panel doesn't dominate a small
+  // screen -- see the "sm:block" override in index.html that keeps it
+  // permanently open on wider screens regardless of this state.
+  panelToggle.addEventListener("click", function () {
+    const expanded = panelMore.classList.toggle("hidden") === false;
+    panelToggleLabel.textContent = expanded ? "Less" : "More";
+    panelToggleIcon.classList.toggle("rotate-180", expanded);
+  });
 
   function showAboutModal() {
     aboutModal.classList.remove("hidden");

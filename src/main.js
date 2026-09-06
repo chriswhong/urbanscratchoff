@@ -9,6 +9,7 @@ import { DEFAULT_TILE_LAYERS } from "./constants.js";
 import { createMapLayers } from "./mapLayers.js";
 import { setupInteraction } from "./interaction.js";
 import { setupUI } from "./ui.js";
+import { setupSearch } from "./search.js";
 
 const map = new maplibregl.Map({
   container: "map",
@@ -29,7 +30,23 @@ const map = new maplibregl.Map({
   renderWorldCopies: false,
 });
 
-map.addControl(new maplibregl.NavigationControl(), "top-right");
+// On narrow screens the search box lives inside the main panel (see
+// search.js) rather than floating in the top-right corner, but the zoom
+// control would still sit right under the panel there -- move it to
+// bottom-left, alongside the scale control, so it's not obscured.
+const navControl = new maplibregl.NavigationControl();
+const desktopMql = window.matchMedia("(min-width: 640px)");
+let navControlAdded = false;
+function placeNavControl(isDesktop) {
+  if (navControlAdded) map.removeControl(navControl);
+  map.addControl(navControl, isDesktop ? "top-right" : "bottom-left");
+  navControlAdded = true;
+}
+placeNavControl(desktopMql.matches);
+desktopMql.addEventListener("change", function (e) {
+  placeNavControl(e.matches);
+});
+
 map.addControl(new maplibregl.ScaleControl(), "bottom-left");
 
 map.on("load", function () {
@@ -47,6 +64,8 @@ map.on("load", function () {
     onScratch: mapLayers.scratchAt,
     onGestureEnd: mapLayers.endGesture,
   });
+
+  setupSearch(map);
 
   // Zoom, rotate, and pitch all use gestures (scroll wheel, pinch,
   // right-button/Ctrl+drag, Shift+drag) that never collide with a plain
