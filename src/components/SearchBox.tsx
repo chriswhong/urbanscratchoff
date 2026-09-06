@@ -212,7 +212,7 @@ export function SearchBox({ map }: SearchBoxProps) {
             rel="noopener"
             className="flex items-center gap-1 px-3 py-1.5 border-t border-gray-100 text-[11px] text-gray-400 hover:text-gray-500"
           >
-            <img src={`${import.meta.env.BASE_URL}assets/geocode-earth-pin.svg`} alt="" className="w-2.5 h-2.5 opacity-60" />
+            <img src="/assets/geocode-earth-pin.svg" alt="" className="w-2.5 h-2.5 opacity-60" />
             Powered by Geocode Earth
           </a>
         </div>
