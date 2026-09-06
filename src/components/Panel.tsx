@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import type { Map as MapLibreMap } from "maplibre-gl";
+import * as Slider from "@radix-ui/react-slider";
 import { SearchBox } from "./SearchBox";
+import { BRUSH_RADIUS_MIN, BRUSH_RADIUS_MAX } from "../constants";
 
 interface PanelProps {
   map: MapLibreMap | null;
@@ -8,6 +10,8 @@ interface PanelProps {
   bottomName: string;
   onSwap: () => void;
   onAboutClick: () => void;
+  brushRadius: number;
+  onBrushRadiusChange: (radius: number) => void;
 }
 
 const SWAP_ANIMATION_MS = 220;
@@ -26,7 +30,7 @@ function LayerIcon({ className }: { className: string }) {
   );
 }
 
-export function Panel({ map, topName, bottomName, onSwap, onAboutClick }: PanelProps) {
+export function Panel({ map, topName, bottomName, onSwap, onAboutClick, brushRadius, onBrushRadiusChange }: PanelProps) {
   const [moreOpen, setMoreOpen] = useState(false);
   const topRowRef = useRef<HTMLDivElement>(null);
   const bottomRowRef = useRef<HTMLDivElement>(null);
@@ -65,7 +69,7 @@ export function Panel({ map, topName, bottomName, onSwap, onAboutClick }: PanelP
   return (
     <div
       id="panel"
-      className="fixed top-4 left-4 right-4 sm:right-auto sm:w-[320px] z-40 bg-white/95 backdrop-blur rounded-xl shadow-lg p-4"
+      className="fixed top-2.5 left-2.5 right-2.5 sm:right-auto sm:w-[320px] z-40 bg-white/95 backdrop-blur rounded-xl shadow-lg p-4"
     >
       <h1 className="text-2xl font-extrabold tracking-tight m-0 flex items-center gap-2">
         <img src="/assets/penny.png" alt="" className="coin inline-block w-8 h-8 rounded-full shadow-sm" />
@@ -111,6 +115,29 @@ export function Panel({ map, topName, bottomName, onSwap, onAboutClick }: PanelP
         <p className="hidden pointer-coarse:block text-xs text-gray-400 mt-2 mb-0">Use two fingers to pan the map.</p>
 
         <div className="mt-3 pt-3 border-t border-gray-200">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400">Brush Size</div>
+            <div className="text-[11px] font-semibold text-gray-500 tabular-nums">{brushRadius}</div>
+          </div>
+          <Slider.Root
+            className="relative flex items-center select-none touch-none w-full h-4"
+            min={BRUSH_RADIUS_MIN}
+            max={BRUSH_RADIUS_MAX}
+            step={1}
+            value={[brushRadius]}
+            onValueChange={([value]) => onBrushRadiusChange(value)}
+          >
+            <Slider.Track className="bg-gray-200 relative grow rounded-full h-1.5">
+              <Slider.Range className="absolute bg-sky-600 rounded-full h-full" />
+            </Slider.Track>
+            <Slider.Thumb
+              className="block w-4 h-4 bg-white border-2 border-sky-600 rounded-full shadow cursor-pointer focus:outline-none focus:ring-2 focus:ring-sky-300"
+              aria-label="Brush size"
+            />
+          </Slider.Root>
+        </div>
+
+        <div className="mt-3 pt-3 border-t border-gray-200">
           <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-2">Layer Order</div>
           <div className="flex items-center gap-3">
             <button
@@ -147,10 +174,17 @@ export function Panel({ map, topName, bottomName, onSwap, onAboutClick }: PanelP
             About
           </a>
           <a href="http://chriswhong.com/local/building-urban-scratchoff/" target="_blank" rel="noopener" className="inline-flex items-center gap-1">
-            Blog Post <i className="fa-solid fa-arrow-up-right-from-square text-xs" />
+            Blog Post
           </a>
-          <a href="https://github.com/chriswhong/urbanscratchoff" target="_blank" rel="noopener" aria-label="Github" title="Github">
-            <i className="fa-brands fa-github text-lg" />
+          <a
+            href="https://github.com/chriswhong/urbanscratchoff"
+            target="_blank"
+            rel="noopener"
+            aria-label="Github"
+            title="Github"
+            className="inline-flex items-center"
+          >
+            <i className="fa-brands fa-github text-base leading-none" />
           </a>
         </div>
       </div>

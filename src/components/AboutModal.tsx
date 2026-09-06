@@ -24,19 +24,14 @@ export function AboutModal({ open, onClose }: AboutModalProps) {
       }}
     >
       <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col overflow-hidden">
-        <div className="flex items-start justify-between gap-4 p-4 border-b border-gray-200">
-          <div>
-            <h3 className="text-xl font-bold m-0">About Urban Scratchoff</h3>
-            <p className="text-sm text-gray-500 m-0">
-              A web map by{" "}
-              <a href="https://bsky.app/profile/chriswhong.bsky.social" target="_blank" rel="noopener" className="text-sky-600">
-                @chriswhong.bsky.social
-              </a>
-            </p>
-          </div>
-          <button type="button" className="text-2xl leading-none text-gray-400 hover:text-gray-700" aria-label="Close" onClick={onClose}>
-            &times;
-          </button>
+        <div className="p-4 border-b border-gray-200">
+          <h3 className="text-xl font-bold m-0">About Urban Scratchoff</h3>
+          <p className="text-sm text-gray-500 m-0">
+            A web map by{" "}
+            <a href="https://bsky.app/profile/chriswhong.bsky.social" target="_blank" rel="noopener" className="text-sky-600">
+              @chriswhong.bsky.social
+            </a>
+          </p>
         </div>
 
         <div className="p-4 overflow-y-auto space-y-3 text-sm text-gray-700">
@@ -54,42 +49,19 @@ export function AboutModal({ open, onClose }: AboutModalProps) {
 
           <h5 className="font-bold text-base">Tech</h5>
           <p>
-            The map runs on{" "}
+            Urban Scratchoff was originally built with Leaflet, then overhauled in 2026 to run on{" "}
             <a href="https://maplibre.org/" target="_blank" rel="noopener" className="text-sky-600">
               MapLibre GL JS
             </a>{" "}
-            instead of Leaflet, which means it can be pitched and rotated, not just panned and zoomed. The bottom layer is a normal
-            MapLibre raster source/layer. The top (scratchable) layer is a custom MapLibre <code>CustomLayerInterface</code> that renders
-            raw WebGL: each visible tile gets its own offscreen 2D canvas holding the tile image, and that canvas is uploaded as a GL
-            texture and drawn as a textured quad positioned in Mercator coordinates using the same projection matrix MapLibre uses for the
-            rest of the map &mdash; so the overlay stays correctly warped under pitch and rotation instead of breaking like a flat DOM
-            layer would. When the user "Scratches" the map, the mouse position is converted to Mercator coordinates and then to a pixel
-            position on the relevant tile's offscreen canvas, where a circle is drawn using the 'destination-out' composite operation.
-            This turns the affected area transparent; the texture is re-uploaded to the GPU, and the bottom layer shows through! Here's{" "}
-            <a href="http://chriswhong.com/local/building-urban-scratchoff/" target="_blank" rel="noopener" className="text-sky-600">
-              a blog post about how and why I built Urban Scratchoff.
-            </a>{" "}
-            (Note: that post describes the original Leaflet-based implementation.)
+            instead, for a much smoother map experience &mdash; among other things, it can now be pitched and rotated, not just panned and
+            zoomed. The bottom layer is a normal raster tile layer showing whichever imagery is "revealed." The top (scratchable) layer is
+            a custom WebGL layer: dragging on the map punches a transparent hole in it, letting the layer below show through. It's tied to
+            the real map projection and to actual geography, so the hole stays put and warps correctly no matter how you pan, zoom, pitch,
+            or rotate afterward.
           </p>
 
           <h5 className="font-bold text-base">Imagery</h5>
-          <p className="line-through text-gray-400">
-            The historical imagery is provided by the New York Public Library (NYPL Labs){" "}
-            <a href="http://maps.nypl.org/warper/" target="_blank" rel="noopener" className="text-sky-600">
-              Mapwarper
-            </a>{" "}
-            site - "Sectional aerial maps of the City of New York / photographed and assembled under the direction of the chief engineer,
-            July 1st, 1924." Mapwarper is a crowd-sourced imagery rectification tool. If you see imagery that doesn't "line up" while
-            using Urban Scratchoff, you can actually help out and fix the rectification points on the NYPL This layer is cached on my
-            server.
-          </p>
-          <p className="line-through text-gray-400">
-            The modern day imagery is{" "}
-            <a href="https://developer.mapquest.com/" target="_blank" rel="noopener" className="text-sky-600">
-              Mapquest's OpenAerial
-            </a>{" "}
-            tileset
-          </p>
+          
           <p>
             The 1924 and 2018 aerial imagery is provided by the GIS Team at NYC's Office of Technology &amp; Innovation.{" "}
             <a href="https://maps.nyc.gov/tiles/" target="_blank" rel="noopener" className="text-sky-600">
@@ -146,25 +118,6 @@ export function AboutModal({ open, onClose }: AboutModalProps) {
               for guidance on combining tiles and HTML canvas
             </li>
           </ul>
-
-          <h5 className="font-bold text-base">Todo</h5>
-          <p>
-            I would like to make it so that anyone can submit points of interest. Everyone will be greeted with a marked up map full of
-            interesting scratchoffs to explore.
-          </p>
-
-          <p className="font-bold">
-            <a href="https://github.com/chriswhong/urbanscratchoff" target="_blank" rel="noopener" className="text-sky-600">
-              The code is on github
-            </a>
-            . If you find a bug, please open an issue. If you want to contribute or fork for your city, have at it!
-          </p>
-        </div>
-
-        <div className="flex justify-end p-4 border-t border-gray-200">
-          <button type="button" className="px-3 py-1.5 text-sm rounded bg-gray-100 hover:bg-gray-200" onClick={onClose}>
-            Close
-          </button>
         </div>
       </div>
     </div>

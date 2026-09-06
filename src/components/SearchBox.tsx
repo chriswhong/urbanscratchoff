@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } fro
 import { createPortal } from "react-dom";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { NYC_BOUNDS } from "../constants";
 import type { GeocodeFeature, GeocodeResponse } from "../types";
 
 // ---- Address search (geocode.earth) --------------------------------
@@ -13,11 +14,6 @@ import type { GeocodeFeature, GeocodeResponse } from "../types";
 const API_BASE = "https://api.geocode.earth/v1";
 const DEBOUNCE_MS = 250;
 const MIN_QUERY_LENGTH = 3;
-
-// Loosely covers the five boroughs -- keeps results relevant to what
-// this app is actually about, rather than matching "Broadway" anywhere
-// in the country.
-const NYC_BOUNDS = { minLon: -74.26, minLat: 40.49, maxLon: -73.68, maxLat: 40.92 };
 
 const PIN_SVG =
   '<svg width="22" height="28" viewBox="0 0 22 28" fill="none" xmlns="http://www.w3.org/2000/svg">' +
@@ -176,7 +172,7 @@ export function SearchBox({ map }: SearchBoxProps) {
     <div
       id="search-box"
       ref={containerRef}
-      className="mt-3 pt-3 border-t border-gray-200 sm:mt-0 sm:pt-0 sm:border-t-0 sm:fixed sm:top-4 sm:right-4 sm:w-72 sm:z-40 sm:bg-white/95 sm:backdrop-blur sm:rounded-xl sm:shadow-lg"
+      className="mt-3 pt-3 border-t border-gray-200 sm:mt-0 sm:pt-0 sm:border-t-0 sm:fixed sm:top-2.5 sm:right-2.5 sm:w-72 sm:z-40 sm:bg-white/95 sm:backdrop-blur sm:rounded-xl sm:shadow-lg"
     >
       <div className="flex items-center gap-2 py-2 sm:px-3">
         <i className="fa-solid fa-magnifying-glass text-gray-400 text-sm" />
@@ -197,17 +193,28 @@ export function SearchBox({ map }: SearchBoxProps) {
         )}
       </div>
       {showResults && (
-        <div className="max-h-72 overflow-y-auto border-t border-gray-200">
-          {results.map((feature, i) => (
-            <button
-              key={i}
-              type="button"
-              className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 truncate"
-              onClick={() => selectFeature(feature)}
-            >
-              {feature.properties.label}
-            </button>
-          ))}
+        <div className="border-t border-gray-200">
+          <div className="max-h-72 overflow-y-auto">
+            {results.map((feature, i) => (
+              <button
+                key={i}
+                type="button"
+                className="block w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 border-b border-gray-100 last:border-b-0 truncate"
+                onClick={() => selectFeature(feature)}
+              >
+                {feature.properties.label}
+              </button>
+            ))}
+          </div>
+          <a
+            href="https://geocode.earth"
+            target="_blank"
+            rel="noopener"
+            className="flex items-center gap-1 px-3 py-1.5 border-t border-gray-100 text-[11px] text-gray-400 hover:text-gray-500"
+          >
+            <img src="/assets/geocode-earth-pin.svg" alt="" className="w-2.5 h-2.5 opacity-60" />
+            Powered by Geocode Earth
+          </a>
         </div>
       )}
     </div>

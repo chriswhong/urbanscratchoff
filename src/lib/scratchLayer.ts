@@ -1,5 +1,5 @@
 import maplibregl, { MercatorCoordinate, type Map as MapLibreMap } from "maplibre-gl";
-import { TILE_SIZE, BRUSH_RADIUS, MAX_TILE_SPAN, MAX_CACHED_TILES } from "../constants";
+import { TILE_SIZE, MAX_TILE_SPAN, MAX_CACHED_TILES } from "../constants";
 import type { Stamp } from "../types";
 
 // ---- Custom WebGL "canvas layer" ------------------------------------
@@ -196,7 +196,7 @@ export class ScratchLayer implements maplibregl.CustomLayerInterface {
   // stamp was actually close enough to touch this tile.
   private applyStampToTile(tile: CachedTile, stamp: Stamp, targetZ: number, tx: number, ty: number): boolean {
     const n = Math.pow(2, targetZ);
-    const eraseRadius = BRUSH_RADIUS * Math.pow(2, targetZ - stamp.tileZ);
+    const eraseRadius = stamp.radius * Math.pow(2, targetZ - stamp.tileZ);
 
     const px = stamp.mercX * n * TILE_SIZE;
     const py = stamp.mercY * n * TILE_SIZE;
@@ -222,12 +222,12 @@ export class ScratchLayer implements maplibregl.CustomLayerInterface {
 
   // Erase a brush-radius circle at the given lngLat, spilling into
   // neighboring tiles when the brush overlaps a tile edge.
-  scratchAt(lngLat: maplibregl.LngLatLike) {
+  scratchAt(lngLat: maplibregl.LngLatLike, radius: number) {
     const tileZ = this.tileZ;
     if (tileZ === null || !this.map) return;
 
     const merc = MercatorCoordinate.fromLngLat(lngLat);
-    const stamp: Stamp = { mercX: merc.x, mercY: merc.y, tileZ };
+    const stamp: Stamp = { mercX: merc.x, mercY: merc.y, tileZ, radius };
     this.stamps.push(stamp);
 
     const n = Math.pow(2, tileZ);

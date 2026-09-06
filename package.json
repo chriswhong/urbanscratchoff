@@ -21,6 +21,7 @@
   "homepage": "https://github.com/chriswhong/urbanscratchoff#readme",
   "dependencies": {
     "@fortawesome/fontawesome-free": "^7.3.1",
+    "@radix-ui/react-slider": "^1.4.7",
     "@tailwindcss/vite": "^4.3.3",
     "@turf/circle": "^7.4.0",
     "@turf/helpers": "^7.4.0",

@@ -63,11 +63,11 @@ export function createMapLayers(map: MapLibreMap, initialTileLayers: [TileLayer,
 
   // Erases into the raster tile and queues the matching border circle
   // together, so the two stay in sync at every stamp.
-  function scratchAt(lngLat: LngLat) {
+  function scratchAt(lngLat: LngLat, radius: number) {
     if (!scratchLayer || scratchLayer.tileZ === null) return;
     const tileZ = scratchLayer.tileZ;
-    scratchLayer.scratchAt(lngLat);
-    border.queueCircle(lngLat, tileZ);
+    scratchLayer.scratchAt(lngLat, radius);
+    border.queueCircle(lngLat, tileZ, radius);
   }
 
   function endGesture() {

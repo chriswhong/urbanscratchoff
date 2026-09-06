@@ -25,7 +25,7 @@ export function useMapLayers(map: MapLibreMap | null, loaded: boolean) {
   }, [map, loaded]);
 
   const swap = useCallback(() => handleRef.current?.swap(), []);
-  const scratchAt = useCallback((lngLat: LngLat) => handleRef.current?.scratchAt(lngLat), []);
+  const scratchAt = useCallback((lngLat: LngLat, radius: number) => handleRef.current?.scratchAt(lngLat, radius), []);
   const endGesture = useCallback(() => handleRef.current?.endGesture(), []);
 
   return { topName, bottomName, swap, scratchAt, endGesture };

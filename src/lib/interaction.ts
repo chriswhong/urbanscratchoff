@@ -1,9 +1,21 @@
 import type { Map as MapLibreMap, MapMouseEvent, MapTouchEvent, Point, LngLat } from "maplibre-gl";
-import { STAMP_SPACING } from "../constants";
+import { TILE_SIZE } from "../constants";
+
+// MapLibre's internal Transform always treats one tile as 512 CSS pixels
+// wide at the zoom bucket it's rendering (a fixed architectural constant,
+// independent of TILE_SIZE or devicePixelRatio -- confirmed by measuring
+// map.project() across one tile-width of longitude). Our tile canvases
+// are TILE_SIZE (256) texels, stretched across that same 512px quad, so
+// one texel maps to 512/TILE_SIZE CSS pixels, not 1:1.
+const TEXEL_TO_CSS_PIXEL = 512 / TILE_SIZE;
 
 interface InteractionOptions {
-  onScratch: (lngLat: LngLat) => void;
+  onScratch: (lngLat: LngLat, radius: number) => void;
   onGestureEnd?: () => void;
+  // Read fresh on every stamp rather than passed once, so dragging the
+  // brush-size slider takes effect immediately without tearing down and
+  // re-registering every listener here.
+  getBrushRadius: () => number;
 }
 
 // ---- interaction ------------------------------------------------------
@@ -21,11 +33,49 @@ interface InteractionOptions {
 // scratching -- Ctrl+drag and right-drag are left to MapLibre's own
 // always-on dragRotate handler for pitch/rotate (see isNavigationGesture
 // below).
-export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd }: InteractionOptions) {
+export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd, getBrushRadius }: InteractionOptions) {
   let panModifierHeld = false;
   let touchPanning = false;
   let isDrawing = false;
   let lastPoint: Point | null = null;
+  let hoverPoint: Point | null = null;
+
+  // A ring around the mouse showing the actual on-screen size of the next
+  // scratch, so the user can see what they're about to erase before they
+  // click. Screen radius = brush radius (in "tile pixels at the current
+  // zoom bucket") scaled by how far the continuous zoom has drifted from
+  // that bucket -- the same math scratchLayer.ts's render() uses, so the
+  // ring matches the real erase footprint instead of just approximating
+  // it as constant-screen-pixels.
+  const cursorCircle = document.createElement("div");
+  cursorCircle.style.position = "absolute";
+  cursorCircle.style.pointerEvents = "none";
+  cursorCircle.style.borderRadius = "50%";
+  cursorCircle.style.border = "2px solid white";
+  cursorCircle.style.boxShadow = "0 0 0 1px rgba(0,0,0,0.5), inset 0 0 0 1px rgba(0,0,0,0.5)";
+  cursorCircle.style.transform = "translate(-50%, -50%)";
+  cursorCircle.style.display = "none";
+  cursorCircle.style.zIndex = "10";
+  map.getCanvasContainer().appendChild(cursorCircle);
+
+  function currentScreenRadius() {
+    const zoom = map.getZoom();
+    const tileZ = Math.round(zoom);
+    return getBrushRadius() * TEXEL_TO_CSS_PIXEL * Math.pow(2, zoom - tileZ);
+  }
+
+  function updateCursorCircle() {
+    const panning = panModifierHeld || touchPanning;
+    if (!hoverPoint || panning) {
+      cursorCircle.style.display = "none";
+      return;
+    }
+    const r = currentScreenRadius();
+    cursorCircle.style.width = cursorCircle.style.height = r * 2 + "px";
+    cursorCircle.style.left = hoverPoint.x + "px";
+    cursorCircle.style.top = hoverPoint.y + "px";
+    cursorCircle.style.display = "block";
+  }
 
   function updateDragPan() {
     if (panModifierHeld || touchPanning) {
@@ -37,7 +87,10 @@ export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd }: 
 
   function updateCursor() {
     const panning = panModifierHeld || touchPanning;
-    map.getCanvas().style.cursor = panning ? "grab" : "crosshair";
+    // The ring above replaces the crosshair as the "you'll scratch here"
+    // affordance, so hide the native cursor rather than show both.
+    map.getCanvas().style.cursor = panning ? "grab" : "none";
+    updateCursorCircle();
   }
 
   // dragPan starts disabled -- see updateDragPan above.
@@ -69,19 +122,35 @@ export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd }: 
   window.addEventListener("keyup", onPanModifierUp);
   window.addEventListener("blur", onWindowBlur);
 
+  function onHoverMove(e: MapMouseEvent) {
+    hoverPoint = e.point;
+    updateCursorCircle();
+  }
+
+  function onHoverLeave() {
+    hoverPoint = null;
+    updateCursorCircle();
+  }
+
+  map.on("mousemove", onHoverMove);
+  map.on("mouseout", onHoverLeave);
+  map.on("zoom", updateCursorCircle);
+
   // Stamp repeatedly along a screen-space segment so fast drags (or sparse
   // mousemove events) don't leave gaps -- purely cosmetic (every stamp
   // unions correctly regardless of spacing), just keeps the swept shape
   // looking like one continuous capsule instead of a string of beads.
   function stampAlong(fromPoint: Point, toPoint: Point) {
+    const radius = getBrushRadius();
     const dx = toPoint.x - fromPoint.x;
     const dy = toPoint.y - fromPoint.y;
     const dist = Math.sqrt(dx * dx + dy * dy);
-    const steps = Math.max(1, Math.ceil(dist / STAMP_SPACING));
+    const spacing = radius / 3;
+    const steps = Math.max(1, Math.ceil(dist / spacing));
     for (let i = 1; i <= steps; i++) {
       const t = i / steps;
       const pt = { x: fromPoint.x + dx * t, y: fromPoint.y + dy * t } as Point;
-      onScratch(map.unproject(pt));
+      onScratch(map.unproject(pt), radius);
     }
   }
 
@@ -119,7 +188,7 @@ export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd }: 
     if (isNavigationGesture(e)) return;
     isDrawing = true;
     lastPoint = e.point;
-    onScratch(e.lngLat);
+    onScratch(e.lngLat, getBrushRadius());
   }
 
   function onScratchMove(e: ScratchEvent) {
@@ -127,7 +196,7 @@ export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd }: 
     if (lastPoint) {
       stampAlong(lastPoint, e.point);
     } else {
-      onScratch(e.lngLat);
+      onScratch(e.lngLat, getBrushRadius());
     }
     lastPoint = e.point;
   }
@@ -156,6 +225,9 @@ export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd }: 
     window.removeEventListener("keydown", onPanModifierDown);
     window.removeEventListener("keyup", onPanModifierUp);
     window.removeEventListener("blur", onWindowBlur);
+    map.off("mousemove", onHoverMove);
+    map.off("mouseout", onHoverLeave);
+    map.off("zoom", updateCursorCircle);
     map.off("mousedown", onScratchStart);
     map.off("mousemove", onScratchMove);
     map.off("mouseup", onScratchEnd);
@@ -164,5 +236,6 @@ export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd }: 
     map.off("touchend", onScratchEnd);
     window.removeEventListener("mouseup", onScratchEnd);
     window.removeEventListener("touchend", onScratchEnd);
+    cursorCircle.remove();
   };
 }

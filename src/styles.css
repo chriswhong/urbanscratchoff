@@ -25,7 +25,7 @@ body {
    stays put. */
 @media (min-width: 640px) {
   .maplibregl-ctrl-top-right {
-    top: 4.5rem;
+    top: 3.5rem;
   }
 }
 

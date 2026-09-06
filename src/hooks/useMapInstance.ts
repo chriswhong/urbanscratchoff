@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
+import { MIN_ZOOM, MAP_MAX_BOUNDS } from "../constants";
 
 // Creates the MapLibre map once, against the returned container ref, and
 // tracks its "load" event -- everything else that touches the map (layers,
@@ -28,6 +29,11 @@ export function useMapInstance() {
       },
       center: [-73.99, 40.7],
       zoom: 14,
+      minZoom: MIN_ZOOM,
+      maxBounds: [
+        [MAP_MAX_BOUNDS.minLon, MAP_MAX_BOUNDS.minLat],
+        [MAP_MAX_BOUNDS.maxLon, MAP_MAX_BOUNDS.maxLat],
+      ],
       hash: true,
       renderWorldCopies: false,
     });

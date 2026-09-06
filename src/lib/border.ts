@@ -2,7 +2,7 @@ import { circle } from "@turf/circle";
 import { featureCollection } from "@turf/helpers";
 import type { Feature, Polygon, MultiPolygon } from "geojson";
 import { GeoJSONSource, type Map as MapLibreMap, type LngLat } from "maplibre-gl";
-import { BRUSH_RADIUS, BORDER_LINE_WIDTH, UNION_FLUSH_DELAY } from "../constants";
+import { BORDER_LINE_WIDTH, UNION_FLUSH_DELAY } from "../constants";
 import BorderWorker from "../workers/borderWorker?worker";
 
 // ---- border layer (vector line) ---------------------------------------
@@ -55,8 +55,8 @@ export function createBorderLayer(map: MapLibreMap) {
     source.setData(feature ? featureCollection([feature]) : featureCollection([]));
   };
 
-  function queueCircle(lngLat: LngLat, tileZ: number) {
-    const radiusMeters = BRUSH_RADIUS * metersPerPixel(lngLat.lat, tileZ);
+  function queueCircle(lngLat: LngLat, tileZ: number, radius: number) {
+    const radiusMeters = radius * metersPerPixel(lngLat.lat, tileZ);
     pendingCircles.push(circle([lngLat.lng, lngLat.lat], radiusMeters, { steps: 24, units: "meters" }));
     if (!flushTimer) {
       flushTimer = setTimeout(flush, UNION_FLUSH_DELAY);

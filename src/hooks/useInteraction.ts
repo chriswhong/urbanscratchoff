@@ -2,7 +2,13 @@ import { useEffect } from "react";
 import type { Map as MapLibreMap, LngLat } from "maplibre-gl";
 import { setupInteraction } from "../lib/interaction";
 
-export function useInteraction(map: MapLibreMap | null, loaded: boolean, onScratch: (lngLat: LngLat) => void, onGestureEnd: () => void) {
+export function useInteraction(
+  map: MapLibreMap | null,
+  loaded: boolean,
+  onScratch: (lngLat: LngLat, radius: number) => void,
+  onGestureEnd: () => void,
+  getBrushRadius: () => number,
+) {
   useEffect(() => {
     if (!map || !loaded) return;
 
@@ -18,6 +24,6 @@ export function useInteraction(map: MapLibreMap | null, loaded: boolean, onScrat
     map.keyboard.enable();
     map.boxZoom.enable();
 
-    return setupInteraction(map, { onScratch, onGestureEnd });
-  }, [map, loaded, onScratch, onGestureEnd]);
+    return setupInteraction(map, { onScratch, onGestureEnd, getBrushRadius });
+  }, [map, loaded, onScratch, onGestureEnd, getBrushRadius]);
 }
