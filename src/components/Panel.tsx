@@ -72,7 +72,7 @@ export function Panel({ map, topName, bottomName, onSwap, onAboutClick, brushRad
       className="fixed top-2.5 left-2.5 right-2.5 sm:right-auto sm:w-[320px] z-40 bg-white/95 backdrop-blur rounded-xl shadow-lg p-4"
     >
       <h1 className="text-2xl font-extrabold tracking-tight m-0 flex items-center gap-2">
-        <img src="/assets/penny.png" alt="" className="coin inline-block w-8 h-8 rounded-full shadow-sm" />
+        <img src={`${import.meta.env.BASE_URL}assets/penny.png`} alt="" className="coin inline-block w-8 h-8 rounded-full shadow-sm" />
         <span className="bg-gradient-to-r from-sky-600 to-blue-900 bg-clip-text text-transparent">Urban Scratchoff</span>
       </h1>
       <p id="byline" className="text-xs text-gray-500 mt-0.5 mb-0">

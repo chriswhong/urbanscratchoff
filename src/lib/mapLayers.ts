@@ -1,8 +1,7 @@
 import type { Map as MapLibreMap, LngLat } from "maplibre-gl";
 import { TILE_SIZE } from "../constants";
 import { ScratchLayer } from "./scratchLayer";
-import { createBorderLayer } from "./border";
-import { createLabelLayers } from "./labels";
+import { createBorderLayer, LAYER_ID as BORDER_LAYER_ID } from "./border";
 import type { TileLayer } from "../types";
 
 const BASE_SOURCE_ID = "base-tiles";
@@ -13,17 +12,16 @@ interface MapLayersOptions {
   onLayersChanged?: (bottomName: string, topName: string) => void;
 }
 
-// Owns the base raster layer, the scratch layer, the border, and the
-// labels together, since swapping the two tile layers means recreating
-// the raster source/layer and the scratch layer from scratch -- and the
-// border and labels both need to react to that (border resets since it
-// traces the scratch layer's erased area; labels just need to be
-// re-stacked back on top).
+// Owns the base raster layer and the scratch layer, since swapping the two
+// tile layers means recreating both from scratch. The border, labels, and
+// mask are all declared once in the initial style (see useMapInstance.ts)
+// and never move -- these two imagery layers are simply (re-)inserted
+// right below the border every time, which keeps the border/labels/mask
+// stack on top without ever needing to re-stack it.
 export function createMapLayers(map: MapLibreMap, initialTileLayers: [TileLayer, TileLayer], { onLayersChanged }: MapLayersOptions = {}) {
   let layers: [TileLayer, TileLayer] = [...initialTileLayers];
   let scratchLayer: ScratchLayer | null = null;
   const border = createBorderLayer(map);
-  const labels = createLabelLayers(map);
 
   function addTileLayers() {
     const bottomLayer = layers[0];
@@ -40,20 +38,14 @@ export function createMapLayers(map: MapLibreMap, initialTileLayers: [TileLayer,
       tiles: [bottomLayer.url],
       tileSize: TILE_SIZE,
     });
-    map.addLayer({ id: BASE_LAYER_ID, type: "raster", source: BASE_SOURCE_ID });
+    map.addLayer({ id: BASE_LAYER_ID, type: "raster", source: BASE_SOURCE_ID }, BORDER_LAYER_ID);
 
     scratchLayer = new ScratchLayer(SCRATCH_LAYER_ID, topLayer.url);
-    map.addLayer(scratchLayer);
+    map.addLayer(scratchLayer, BORDER_LAYER_ID);
 
     // Swapping recreates the scratch layer from scratch, so the border
     // (which traces its erased area) has to reset along with it.
     border.reset();
-    border.ensureLayer();
-
-    // Labels should always sit above both the raster layers and the
-    // scratch border, so re-stack them on top every time those get
-    // recreated too.
-    labels.ensure();
   }
 
   function swap() {
