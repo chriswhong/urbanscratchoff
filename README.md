@@ -2,6 +2,31 @@
 
 Test it here [http://chriswhong.github.io/urbanscratchoff/](http://chriswhong.github.io/urbanscratchoff/)
 
+## Development
+
+This is a [Vite](https://vitejs.dev/) + React + TypeScript app.
+
+```
+npm install
+cp .env.example .env   # add your own geocode.earth API key for search
+npm run dev        # local dev server with hot reload
+npm run build      # type-checks, then production build to dist/
+npm run preview    # serve the production build locally
+npm run typecheck  # type-check only
+```
+
+Source lives under `src/`:
+
+- `main.tsx` / `App.tsx` -- entry point and top-level component
+- `constants.ts` / `types.ts` -- shared tuning constants and types
+- `lib/scratchLayer.ts` -- the custom WebGL layer that renders and erases the scratchable top imagery
+- `lib/border.ts` / `workers/borderWorker.ts` -- the vector "torn edge" border tracing the scratched area, computed off the main thread
+- `lib/labels.ts` -- place/street labels from OpenFreeMap vector tiles
+- `lib/mapLayers.ts` -- wires the raster layers, scratch layer, border, and labels together, and handles swapping them
+- `lib/interaction.ts` -- drag-to-scratch and pan-modifier input handling
+- `hooks/` -- React glue around the above (map creation, controls, layers, interaction)
+- `components/Panel.tsx`, `components/SearchBox.tsx`, `components/AboutModal.tsx` -- the UI
+
 ## About
 
 Near where I live in Brooklyn, the BQE runs through a trench in the ground. I've always read and heard about the condemned buildings and displaced people that used to live where our urban highways run, so I thought it would be a good visual to allow the user to manually "Reveal" the urban highway by "Scratching" or mousing over a historic aerial photo.
