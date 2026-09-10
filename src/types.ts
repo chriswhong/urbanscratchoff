@@ -12,6 +12,9 @@ export interface Stamp {
   mercY: number;
   tileZ: number;
   radius: number;
+  // True for a shift-drag "redraw" stamp that restores original pixels
+  // instead of erasing them -- see scratchLayer.ts's applyStampToTile.
+  restore?: boolean;
 }
 
 export interface GeocodeFeature {

@@ -20,12 +20,13 @@ import BorderWorker from "../workers/borderWorker?worker";
 // rendered at that many screen pixels continuously across zoom, with no
 // integer-snapping, because MapLibre's vector renderer is built to do
 // exactly that. So the border is instead a genuine GeoJSON line layer
-// tracing the true outer boundary of the union of every scratch ever made.
-// Turf computes that union: each stamp becomes a circle polygon (sized in
-// real-world meters, matching the raster erase hole's own geospatial
-// scaling), folded into one running unioned polygon -- in a Web Worker
-// (borderWorker.ts) so the union computation never blocks the main thread,
-// no matter how expensive it gets over a long scratching session.
+// tracing the true outer boundary of every scratch ever made, net of any
+// shift-drag "redraws". Each stamp becomes a circle polygon (sized in real-
+// world meters, matching the raster erase hole's own geospatial scaling),
+// folded into one running polygon via turf's union (for a scratch) or
+// difference (for a redraw) -- in a Web Worker (borderWorker.ts) so that
+// work never blocks the main thread, no matter how expensive it gets over
+// a long scratching session.
 //
 // Posting circles to the worker on every single stamp would still be
 // wasteful message-passing overhead -- dragging can generate dozens of
@@ -40,6 +41,7 @@ export const SOURCE_ID = "scratch-border";
 export const LAYER_ID = "scratch-border-line";
 
 type BorderFeature = Feature<Polygon | MultiPolygon>;
+type BorderOp = { feature: BorderFeature; subtract: boolean };
 type WorkerUpdateMessage = { type: "update"; feature: BorderFeature | null };
 
 function metersPerPixel(lat: number, zoom: number) {
@@ -53,7 +55,11 @@ function metersPerPixel(lat: number, zoom: number) {
 // inserted below LAYER_ID on every swap (see mapLayers.ts) so the border
 // stays on top without ever needing to move.
 export function createBorderLayer(map: MapLibreMap) {
-  let pendingCircles: BorderFeature[] = [];
+  // Ordered (not split into separate add/subtract batches) so a flush that
+  // happens to straddle a direction change -- scratch then shift-redraw
+  // within the same UNION_FLUSH_DELAY window -- still applies in the
+  // right order, matching what the raster layer already did stamp-by-stamp.
+  let pendingOps: BorderOp[] = [];
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
   const worker = new BorderWorker();
 
@@ -64,9 +70,12 @@ export function createBorderLayer(map: MapLibreMap) {
     source.setData(feature ? featureCollection([feature]) : featureCollection([]));
   };
 
-  function queueCircle(lngLat: LngLat, tileZ: number, radius: number) {
+  // subtract=true for a shift-drag "redraw" circle, which should carve
+  // this area back out of the accumulated border instead of adding to it.
+  function queueCircle(lngLat: LngLat, tileZ: number, radius: number, subtract = false) {
     const radiusMeters = radius * metersPerPixel(lngLat.lat, tileZ);
-    pendingCircles.push(circle([lngLat.lng, lngLat.lat], radiusMeters, { steps: 24, units: "meters" }));
+    const feature = circle([lngLat.lng, lngLat.lat], radiusMeters, { steps: 24, units: "meters" });
+    pendingOps.push({ feature, subtract });
     if (!flushTimer) {
       flushTimer = setTimeout(flush, UNION_FLUSH_DELAY);
     }
@@ -74,10 +83,10 @@ export function createBorderLayer(map: MapLibreMap) {
 
   function flush() {
     flushTimer = null;
-    if (pendingCircles.length === 0) return;
-    const newCircles = pendingCircles;
-    pendingCircles = [];
-    worker.postMessage({ type: "addCircles", circles: newCircles });
+    if (pendingOps.length === 0) return;
+    const ops = pendingOps;
+    pendingOps = [];
+    worker.postMessage({ type: "applyOps", ops });
   }
 
   // Flushes immediately rather than waiting for the throttle timer, so the
@@ -94,7 +103,7 @@ export function createBorderLayer(map: MapLibreMap) {
   // whenever the scratch layer itself resets (e.g. on swap), so the border
   // never ends up tracing an area that's no longer actually scratched.
   function reset() {
-    pendingCircles = [];
+    pendingOps = [];
     if (flushTimer) {
       clearTimeout(flushTimer);
       flushTimer = null;

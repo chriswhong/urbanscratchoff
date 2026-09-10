@@ -1,9 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import maplibregl, { type Map as MapLibreMap, type StyleSpecification } from "maplibre-gl";
+import { Map, setWorkerUrl, type Map as MapLibreMap, type StyleSpecification } from "maplibre-gl";
+import mapLibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import { MIN_ZOOM, MAP_MAX_BOUNDS } from "../constants";
 import { SOURCE_ID as BORDER_SOURCE_ID, borderLayerSpec } from "../lib/border";
 import { labels } from "../lib/labels";
 import { SOURCE_ID as MASK_SOURCE_ID, maskSourceSpec, maskLayerSpec } from "../lib/mask";
+
+// Vite can't resolve the worker via import.meta.url the way MapLibre's own
+// browser-ESM auto-detection expects (see the v6 migration guide's ESM
+// section), so this points it at Vite's own bundled copy instead -- once,
+// at module scope, before any Map is ever constructed.
+setWorkerUrl(mapLibreWorkerUrl);
 
 // The only layers that ever get added/removed at runtime are the two
 // imagery layers (see mapLayers.ts), which are inserted directly below the
@@ -44,7 +51,7 @@ export function useMapInstance() {
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const instance = new maplibregl.Map({
+    const instance = new Map({
       container: containerRef.current,
       style: initialStyle(),
       center: [-73.99, 40.7],

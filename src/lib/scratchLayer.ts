@@ -1,4 +1,10 @@
-import maplibregl, { MercatorCoordinate, type Map as MapLibreMap } from "maplibre-gl";
+import {
+  MercatorCoordinate,
+  type Map as MapLibreMap,
+  type CustomLayerInterface,
+  type CustomRenderMethodInput,
+  type LngLatLike,
+} from "maplibre-gl";
 import { TILE_SIZE, MAX_TILE_SPAN, MAX_CACHED_TILES } from "../constants";
 import type { Stamp } from "../types";
 
@@ -33,6 +39,10 @@ interface CachedTile {
   loaded: boolean;
   dirty: boolean;
   lastUsed: number;
+  // Kept around (beyond the initial drawImage into canvas) so a "restore"
+  // stamp can redraw original pixels back into an erased area -- see
+  // restoreCircle() and applyStampToTile().
+  sourceImage: HTMLImageElement | null;
 }
 
 interface TileRange {
@@ -42,7 +52,7 @@ interface TileRange {
   yMax: number;
 }
 
-export class ScratchLayer implements maplibregl.CustomLayerInterface {
+export class ScratchLayer implements CustomLayerInterface {
   id: string;
   type = "custom" as const;
   renderingMode = "2d" as const;
@@ -162,6 +172,7 @@ export class ScratchLayer implements maplibregl.CustomLayerInterface {
       loaded: false,
       dirty: true,
       lastUsed: performance.now(),
+      sourceImage: null,
     };
     this.tiles.set(key, tile);
 
@@ -170,6 +181,7 @@ export class ScratchLayer implements maplibregl.CustomLayerInterface {
     img.onload = () => {
       tile.ctx.drawImage(img, 0, 0, TILE_SIZE, TILE_SIZE);
       tile.loaded = true;
+      tile.sourceImage = img;
       // Replay scratch history now that there's an image to erase into --
       // covers a fresh zoom level, a tile scrolled back into view, or one
       // recreated after cache eviction, all of which would otherwise show
@@ -208,18 +220,22 @@ export class ScratchLayer implements maplibregl.CustomLayerInterface {
   // stamp was actually close enough to touch this tile.
   private applyStampToTile(tile: CachedTile, stamp: Stamp, targetZ: number, tx: number, ty: number): boolean {
     const n = Math.pow(2, targetZ);
-    const eraseRadius = stamp.radius * Math.pow(2, targetZ - stamp.tileZ);
+    const radiusPx = stamp.radius * Math.pow(2, targetZ - stamp.tileZ);
 
     const px = stamp.mercX * n * TILE_SIZE;
     const py = stamp.mercY * n * TILE_SIZE;
     const localX = px - tx * TILE_SIZE;
     const localY = py - ty * TILE_SIZE;
 
-    if (localX < -eraseRadius || localX > TILE_SIZE + eraseRadius || localY < -eraseRadius || localY > TILE_SIZE + eraseRadius) {
+    if (localX < -radiusPx || localX > TILE_SIZE + radiusPx || localY < -radiusPx || localY > TILE_SIZE + radiusPx) {
       return false;
     }
 
-    eraseCircle(tile.ctx, localX, localY, eraseRadius);
+    if (stamp.restore) {
+      if (tile.sourceImage) restoreCircle(tile.ctx, tile.sourceImage, localX, localY, radiusPx);
+    } else {
+      eraseCircle(tile.ctx, localX, localY, radiusPx);
+    }
     return true;
   }
 
@@ -232,14 +248,15 @@ export class ScratchLayer implements maplibregl.CustomLayerInterface {
     }
   }
 
-  // Erase a brush-radius circle at the given lngLat, spilling into
-  // neighboring tiles when the brush overlaps a tile edge.
-  scratchAt(lngLat: maplibregl.LngLatLike, radius: number) {
+  // Erase (or, with restore, redraw) a brush-radius circle at the given
+  // lngLat, spilling into neighboring tiles when the brush overlaps a tile
+  // edge.
+  scratchAt(lngLat: LngLatLike, radius: number, restore = false) {
     const tileZ = this.tileZ;
     if (tileZ === null || !this.map) return;
 
     const merc = MercatorCoordinate.fromLngLat(lngLat);
-    const stamp: Stamp = { mercX: merc.x, mercY: merc.y, tileZ, radius };
+    const stamp: Stamp = { mercX: merc.x, mercY: merc.y, tileZ, radius, restore };
     this.stamps.push(stamp);
 
     const n = Math.pow(2, tileZ);
@@ -278,7 +295,7 @@ export class ScratchLayer implements maplibregl.CustomLayerInterface {
     if (touched) this.map.triggerRepaint();
   }
 
-  render(gl: GL, renderInput: maplibregl.CustomRenderMethodInput) {
+  render(gl: GL, renderInput: CustomRenderMethodInput) {
     const matrix = renderInput.defaultProjectionData.mainMatrix;
     const map = this.map;
     if (!map) return;
@@ -459,4 +476,19 @@ function eraseCircle(ctx: CanvasRenderingContext2D, x: number, y: number, radius
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2, false);
   ctx.fill();
+}
+
+// The inverse of eraseCircle: redraws the tile's original (fully opaque)
+// image clipped to a circle, so a "shift-drag" restore always wins within
+// that circle regardless of the canvas's current (possibly erased) state,
+// via normal source-over compositing rather than needing to know what was
+// there before.
+function restoreCircle(ctx: CanvasRenderingContext2D, image: HTMLImageElement, x: number, y: number, radius: number) {
+  ctx.save();
+  ctx.globalCompositeOperation = "source-over";
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2, false);
+  ctx.clip();
+  ctx.drawImage(image, 0, 0, TILE_SIZE, TILE_SIZE);
+  ctx.restore();
 }

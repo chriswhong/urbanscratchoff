@@ -53,13 +53,14 @@ export function createMapLayers(map: MapLibreMap, initialTileLayers: [TileLayer,
     addTileLayers();
   }
 
-  // Erases into the raster tile and queues the matching border circle
-  // together, so the two stay in sync at every stamp.
-  function scratchAt(lngLat: LngLat, radius: number) {
+  // Erases (or, with restore, redraws) into the raster tile and queues the
+  // matching border circle together, so the two stay in sync at every
+  // stamp.
+  function scratchAt(lngLat: LngLat, radius: number, restore = false) {
     if (!scratchLayer || scratchLayer.tileZ === null) return;
     const tileZ = scratchLayer.tileZ;
-    scratchLayer.scratchAt(lngLat, radius);
-    border.queueCircle(lngLat, tileZ, radius);
+    scratchLayer.scratchAt(lngLat, radius, restore);
+    border.queueCircle(lngLat, tileZ, radius, restore);
   }
 
   function endGesture() {

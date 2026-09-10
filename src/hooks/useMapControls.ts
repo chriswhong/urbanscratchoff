@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
+import { NavigationControl, ScaleControl, type Map as MapLibreMap } from "maplibre-gl";
 
 // On narrow screens the search box lives inside the main panel (see
 // SearchBox.tsx) rather than floating in the top-right corner, but the
@@ -9,8 +9,8 @@ export function useMapControls(map: MapLibreMap | null) {
   useEffect(() => {
     if (!map) return;
 
-    const navControl = new maplibregl.NavigationControl();
-    const scaleControl = new maplibregl.ScaleControl();
+    const navControl = new NavigationControl();
+    const scaleControl = new ScaleControl();
     const desktopMql = window.matchMedia("(min-width: 640px)");
     let navControlAdded = false;
 
