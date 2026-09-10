@@ -18,6 +18,11 @@ import type { Stamp } from "../types";
 
 type GL = WebGLRenderingContext | WebGL2RenderingContext;
 
+// Matches the map style's own "bg" background-color (see useMapInstance.ts)
+// so an unloaded tile blends with the rest of the app's void color instead
+// of introducing a new one.
+const PLACEHOLDER_COLOR = "#1f4b61";
+
 interface CachedTile {
   z: number;
   x: number;
@@ -139,16 +144,23 @@ export class ScratchLayer implements maplibregl.CustomLayerInterface {
     const canvas = document.createElement("canvas");
     canvas.width = TILE_SIZE;
     canvas.height = TILE_SIZE;
+    const ctx = canvas.getContext("2d")!;
+    // Filled opaque immediately (before the real image arrives) so the
+    // layer beneath this one never shows through a not-yet-loaded tile --
+    // render() draws this placeholder in the meantime instead of skipping
+    // the tile outright.
+    ctx.fillStyle = PLACEHOLDER_COLOR;
+    ctx.fillRect(0, 0, TILE_SIZE, TILE_SIZE);
 
     const tile: CachedTile = {
       z,
       x,
       y,
       canvas,
-      ctx: canvas.getContext("2d")!,
+      ctx,
       texture: null,
       loaded: false,
-      dirty: false,
+      dirty: true,
       lastUsed: performance.now(),
     };
     this.tiles.set(key, tile);
@@ -293,7 +305,6 @@ export class ScratchLayer implements maplibregl.CustomLayerInterface {
     for (let y = range.yMin; y <= range.yMax; y++) {
       for (let x = range.xMin; x <= range.xMax; x++) {
         const tile = this.getOrCreateTile(tileZ, x, y);
-        if (!tile.loaded) continue;
 
         gl.activeTexture(gl.TEXTURE0);
 
