@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
-import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
+import { Marker, type Map as MapLibreMap } from "maplibre-gl";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { NYC_BOUNDS } from "../constants";
 import type { GeocodeFeature, GeocodeResponse } from "../types";
@@ -35,7 +35,7 @@ export function SearchBox({ map }: SearchBoxProps) {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const markerRef = useRef<maplibregl.Marker | null>(null);
+  const markerRef = useRef<Marker | null>(null);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortController = useRef<AbortController | null>(null);
 
@@ -150,7 +150,7 @@ export function SearchBox({ map }: SearchBoxProps) {
     pin.innerHTML = PIN_SVG;
     el.appendChild(pin.firstElementChild!);
 
-    markerRef.current = new maplibregl.Marker({ element: el, anchor: "bottom" }).setLngLat([lng, lat]).addTo(map);
+    markerRef.current = new Marker({ element: el, anchor: "bottom" }).setLngLat([lng, lat]).addTo(map);
   }
 
   function clearSearch() {

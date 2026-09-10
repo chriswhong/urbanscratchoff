@@ -1,0 +1,7 @@
+name = "urbanscratchoff-tiles"
+main = "src/worker.ts"
+compatibility_date = "2026-09-09"
+
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "urbanscratchoff"

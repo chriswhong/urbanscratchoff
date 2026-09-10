@@ -30,7 +30,10 @@ export const DEFAULT_TILE_LAYERS: [TileLayer, TileLayer] = [
     url: "https://maps.nyc.gov/xyz/1.0.0/photo/1924/{z}/{x}/{y}.png8",
   },
   {
-    name: "2018 Aerials",
-    url: "https://maps.nyc.gov/xyz/1.0.0/photo/2018/{z}/{x}/{y}.png8",
+    // A mosaic of 2022-2025 NYS ITS statewide orthoimagery, re-tiled and
+    // self-hosted from R2 (see workers/tile-server) -- replaces NYC's own
+    // 2018 photo service, which was 8 years old at this point.
+    name: "2022–2025 Aerials",
+    url: "https://urbanscratchoff-tiles.chris-m-whong.workers.dev/{z}/{x}/{y}.jpg",
   },
 ];

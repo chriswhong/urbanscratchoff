@@ -113,6 +113,10 @@ export function Panel({ map, topName, bottomName, onSwap, onAboutClick, brushRad
           </p>
         )}
         <p className="hidden pointer-coarse:block text-xs text-gray-400 mt-2 mb-0">Use two fingers to pan the map.</p>
+        <p className="hidden sm:pointer-fine:block text-xs text-gray-400 mt-2 mb-0">
+          Hold <kbd className="px-1 py-0.5 rounded border border-gray-300 bg-gray-50 font-sans">Shift</kbd> and drag to redraw instead
+          of scratching.
+        </p>
 
         <div className="mt-3 pt-3 border-t border-gray-200">
           <div className="flex items-center justify-between mb-2">

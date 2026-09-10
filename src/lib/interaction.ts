@@ -10,7 +10,7 @@ import { TILE_SIZE } from "../constants";
 const TEXEL_TO_CSS_PIXEL = 512 / TILE_SIZE;
 
 interface InteractionOptions {
-  onScratch: (lngLat: LngLat, radius: number) => void;
+  onScratch: (lngLat: LngLat, radius: number, restore: boolean) => void;
   onGestureEnd?: () => void;
   // Read fresh on every stamp rather than passed once, so dragging the
   // brush-size slider takes effect immediately without tearing down and
@@ -32,7 +32,9 @@ interface InteractionOptions {
 // Hold Cmd/Win (the "Meta" key) while dragging to pan the map instead of
 // scratching -- Ctrl+drag and right-drag are left to MapLibre's own
 // always-on dragRotate handler for pitch/rotate (see isNavigationGesture
-// below).
+// below). Hold Shift while dragging to scratch in "restore" mode instead
+// -- redrawing rather than erasing -- which is why boxZoom (MapLibre's
+// own default use of Shift+drag) is disabled in useInteraction.ts.
 export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd, getBrushRadius }: InteractionOptions) {
   let panModifierHeld = false;
   let touchPanning = false;
@@ -152,7 +154,7 @@ export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd, ge
   // mousemove events) don't leave gaps -- purely cosmetic (every stamp
   // unions correctly regardless of spacing), just keeps the swept shape
   // looking like one continuous capsule instead of a string of beads.
-  function stampAlong(fromPoint: Point, toPoint: Point) {
+  function stampAlong(fromPoint: Point, toPoint: Point, restore: boolean) {
     const radius = getBrushRadius();
     const dx = toPoint.x - fromPoint.x;
     const dy = toPoint.y - fromPoint.y;
@@ -162,7 +164,7 @@ export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd, ge
     for (let i = 1; i <= steps; i++) {
       const t = i / steps;
       const pt = { x: fromPoint.x + dx * t, y: fromPoint.y + dy * t } as Point;
-      onScratch(map.unproject(pt), radius);
+      onScratch(map.unproject(pt), radius, restore);
     }
   }
 
@@ -170,13 +172,25 @@ export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd, ge
   type EndEvent = ScratchEvent | MouseEvent | TouchEvent;
 
   // True for a gesture MapLibre's own always-on handlers own -- Ctrl+drag
-  // or right-button drag (dragRotate), Shift+drag (boxZoom), or a
-  // Cmd/Win-held pan drag -- in all cases we defer entirely rather than
-  // also scratching.
+  // or right-button drag (dragRotate), or a Cmd/Win-held pan drag -- in all
+  // cases we defer entirely rather than also scratching. Shift isn't
+  // included: it's the restore modifier (see isRestoreGesture), not a
+  // navigation gesture.
   function isNavigationGesture(e: ScratchEvent) {
     const oe = e.originalEvent as MouseEvent | undefined;
     if (!oe) return false;
-    return !!(oe.metaKey || oe.ctrlKey || oe.shiftKey || oe.button === 2);
+    return !!(oe.metaKey || oe.ctrlKey || oe.button === 2);
+  }
+
+  // True while Shift is held during a scratch drag -- redraws (restores)
+  // rather than erases. Read fresh per event rather than tracked like
+  // panModifierHeld, since there's no race to guard against here: nothing
+  // else claims the drag gesture based on Shift once boxZoom is disabled
+  // (see useInteraction.ts), so switching mid-drag can just take effect
+  // stamp-by-stamp.
+  function isRestoreGesture(e: ScratchEvent) {
+    const oe = e.originalEvent as MouseEvent | undefined;
+    return !!oe?.shiftKey;
   }
 
   // Number of simultaneous touches for a MapLibre touch event (e) or a
@@ -209,15 +223,16 @@ export function setupInteraction(map: MapLibreMap, { onScratch, onGestureEnd, ge
     if (isNavigationGesture(e)) return;
     isDrawing = true;
     lastPoint = e.point;
-    onScratch(e.lngLat, getBrushRadius());
+    onScratch(e.lngLat, getBrushRadius(), isRestoreGesture(e));
   }
 
   function onScratchMove(e: ScratchEvent) {
     if (touchPanning || !isDrawing) return;
+    const restore = isRestoreGesture(e);
     if (lastPoint) {
-      stampAlong(lastPoint, e.point);
+      stampAlong(lastPoint, e.point, restore);
     } else {
-      onScratch(e.lngLat, getBrushRadius());
+      onScratch(e.lngLat, getBrushRadius(), restore);
     }
     lastPoint = e.point;
   }
