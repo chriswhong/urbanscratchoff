@@ -63,10 +63,21 @@ export function AboutModal({ open, onClose }: AboutModalProps) {
           <h5 className="font-bold text-base">Imagery</h5>
           
           <p>
-            The 1924 and 2018 aerial imagery is provided by the GIS Team at NYC's Office of Technology &amp; Innovation.{" "}
+            The 1924 aerial imagery is provided by the GIS Team at NYC's Office of Technology &amp; Innovation.{" "}
             <a href="https://maps.nyc.gov/tiles/" target="_blank" rel="noopener" className="text-sky-600">
-              They publish these and other historic NYC tilesets here.
+              They publish this and other historic NYC tilesets here.
             </a>
+          </p>
+          <p>
+            The present-day layer is a mosaic of 2022&ndash;2025 orthoimagery (~12in resolution) from{" "}
+            <a href="https://gis.ny.gov/orthoimagery" target="_blank" rel="noopener" className="text-sky-600">
+              NYS ITS Geospatial Services' statewide orthoimagery program
+            </a>
+            . It's re-cut into a zoom 11&ndash;18 raster tile pyramid, recompressed to JPEG, and packaged as a single{" "}
+            <a href="https://protomaps.com/docs/pmtiles" target="_blank" rel="noopener" className="text-sky-600">
+              PMTiles
+            </a>{" "}
+            archive self-hosted on Cloudflare R2 &mdash; this replaced NYC's own 2018 imagery layer, which was no longer current.
           </p>
 
           <h5 className="font-bold text-base">Attribution & Thanks</h5>
